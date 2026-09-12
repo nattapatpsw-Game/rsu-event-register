@@ -1,13 +1,21 @@
 "use client";
 
 // หน้าแอดมิน — ไม่แตะฐานข้อมูลเอง ทุกอย่างผ่าน /api/admin/*
-// รหัสผ่านไม่เคยอยู่ในไฟล์นี้ จึงไม่มีทางรั่วออกไปกับ JavaScript ที่ส่งให้เบราว์เซอร์ (R4)
+//
+// R4 — สิ่งที่ "ไม่มี" ในไฟล์นี้ คือสิ่งที่สำคัญที่สุด:
+//   · ไม่มีรหัสผ่าน            → อยู่ในระบบ Auth ของ Supabase
+//   · ไม่มีคีย์ที่ข้าม RLS ได้  → โปรเจกต์นี้ไม่มีคีย์แบบนั้นเลย
+//   · ไม่มี token              → เก็บอยู่ในคุกกี้ httpOnly ซึ่ง JavaScript อ่านไม่ได้
+//
+// เปิด View Source แล้วค้นหารหัสผ่านของตัวเอง ต้องหาไม่เจอ — นั่นคือ AC-4.3
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { RegistrationRow } from "@/lib/types";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
@@ -16,7 +24,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [listError, setListError] = useState("");
 
-  const fetchRegistrations = useCallback(async () => {
+  const fetchRegistrations = useCallback(async (): Promise<boolean> => {
     setLoading(true);
     setListError("");
     try {
@@ -27,17 +35,34 @@ export default function AdminPage() {
         message?: string;
       };
       if (!response.ok || !result.ok) {
-        setListError(result.message ?? "อ่านรายชื่อไม่สำเร็จ");
-        if (response.status === 401) setIsAuthenticated(false);
-        return;
+        // 401 = คุกกี้หาย หรือ token หมดอายุ (ค่าตั้งต้นของ Supabase คือ 1 ชั่วโมง)
+        if (response.status === 401) {
+          setIsAuthenticated(false);
+          setRegistrations([]);
+        } else {
+          setListError(result.message ?? "อ่านรายชื่อไม่สำเร็จ");
+        }
+        return false;
       }
       setRegistrations(result.registrations ?? []);
+      return true;
     } catch {
       setListError("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ");
+      return false;
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // คุกกี้เป็น httpOnly หน้าเว็บจึงอ่านเองไม่ได้ว่าล็อกอินอยู่ไหม
+  // วิธีเดียวที่ถูกต้องคือ "ลองถามเซิร์ฟเวอร์ดู" แล้วดูว่าได้ 401 กลับมาหรือเปล่า
+  useEffect(() => {
+    void (async () => {
+      const ok = await fetchRegistrations();
+      setIsAuthenticated(ok);
+      setCheckingSession(false);
+    })();
+  }, [fetchRegistrations]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +71,11 @@ export default function AdminPage() {
       const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
       if (!response.ok) {
         const result = (await response.json()) as { message?: string };
-        setLoginError(result.message ?? "รหัสผ่านไม่ถูกต้อง");
+        setLoginError(result.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
         return;
       }
       setPassword("");
@@ -125,12 +150,38 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
+  // ระหว่างถามเซิร์ฟเวอร์ว่ายังล็อกอินอยู่ไหม อย่าเพิ่งโชว์ฟอร์ม เดี๋ยวหน้าจะกระพริบ
+  if (checkingSession) {
+    return (
+      <div className="container mx-auto p-8 max-w-md mt-20 text-center text-gray-500">
+        กำลังตรวจสอบสิทธิ์...
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto p-8 max-w-md mt-20">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">สำหรับเจ้าหน้าที่</h2>
+          <h2 className="text-2xl font-bold mb-2 text-center">สำหรับเจ้าหน้าที่</h2>
+          <p className="text-sm text-gray-500 text-center mb-6">
+            ใช้บัญชีผู้ดูแลที่สร้างไว้ใน Supabase → Authentication → Users
+          </p>
           <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="admin-email" className="block text-sm font-medium text-gray-700 mb-1">
+                อีเมล
+              </label>
+              <input
+                id="admin-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
+                placeholder="admin@rsu.ac.th"
+                autoComplete="username"
+              />
+            </div>
             <div>
               <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-1">
                 รหัสผ่าน

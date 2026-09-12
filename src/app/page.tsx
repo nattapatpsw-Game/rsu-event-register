@@ -3,12 +3,65 @@
 
 import Link from "next/link";
 import { getCurrentEvent, getSeatsLeft } from "@/lib/db";
+import { missingEnv, missingEnvMessage } from "@/lib/env";
+import type { EventRow } from "@/lib/types";
 
 // ที่นั่งคงเหลือต้องสดเสมอ ห้ามให้ Next แคชหน้านี้ไว้
 export const dynamic = "force-dynamic";
 
+/** หน้าแจ้งว่าตั้งค่ายังไม่ครบ — ดีกว่าปล่อยให้ขึ้นหน้าดำ "A server error occurred" */
+function SetupNotice({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="container mx-auto p-8 max-w-3xl">
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <h1 className="text-2xl font-bold mb-3">{title}</h1>
+        <p className="text-gray-700 leading-relaxed mb-6 break-words">{detail}</p>
+        <ol className="list-decimal list-inside text-gray-600 space-y-2 text-sm">
+          <li>
+            คัดลอก <code className="bg-gray-100 px-1 rounded">.env.example</code> เป็น{" "}
+            <code className="bg-gray-100 px-1 rounded">.env.local</code> แล้วใส่ค่าให้ครบทั้ง 2 ตัว
+          </li>
+          <li>
+            รัน <code className="bg-gray-100 px-1 rounded">db/schema.sql</code> →{" "}
+            <code className="bg-gray-100 px-1 rounded">db/rls.sql</code> →{" "}
+            <code className="bg-gray-100 px-1 rounded">db/seed.sql</code> ใน Supabase → SQL Editor
+          </li>
+          <li>
+            ถ้าเป็นเว็บจริง ให้ใส่ตัวแปรที่ Vercel → Settings → Environment Variables
+            แล้ว <strong>สั่ง Redeploy</strong> ด้วย มิฉะนั้นของเก่าจะยังไม่เห็นค่าที่เพิ่งใส่
+          </li>
+        </ol>
+      </section>
+    </div>
+  );
+}
+
 export default async function Home() {
-  const event = await getCurrentEvent();
+  // ด่านที่ 1 — ตรวจตัวแปรก่อน แล้วบอกชื่อตัวที่ขาดตรง ๆ
+  const missing = missingEnv();
+  if (missing.length > 0) {
+    return (
+      <SetupNotice
+        title="ตั้งค่ายังไม่ครบ"
+        detail={missingEnvMessage(missing)}
+      />
+    );
+  }
+
+  // ด่านที่ 2 — อ่านข้อมูล ถ้าพังให้แสดงข้อความจริงแทนหน้าดำ
+  let event: EventRow | null = null;
+  let seatsLeft = 0;
+  try {
+    event = await getCurrentEvent();
+    if (event) seatsLeft = await getSeatsLeft(event);
+  } catch (error: unknown) {
+    return (
+      <SetupNotice
+        title="เชื่อมต่อฐานข้อมูลไม่สำเร็จ"
+        detail={error instanceof Error ? error.message : "ไม่ทราบสาเหตุ"}
+      />
+    );
+  }
 
   if (!event) {
     return (
@@ -26,8 +79,6 @@ export default async function Home() {
       </div>
     );
   }
-
-  const seatsLeft = await getSeatsLeft(event);
 
   return (
     <div className="container mx-auto p-8 max-w-4xl">

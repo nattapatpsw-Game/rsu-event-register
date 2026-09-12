@@ -66,9 +66,9 @@ rsu-event-register/
 │  └─ lib/
 │     ├─ db.ts                   ★ โค้ดที่คุยกับฐานข้อมูล อยู่ที่นี่ที่เดียว
 │     ├─ validate.ts             ★ ตรรกะตรวจข้อมูล อยู่ที่นี่ที่เดียว
-│     ├─ adminAuth.ts            ตรวจรหัสผ่านและคุกกี้แอดมิน
-│     ├─ supabaseServer.ts       client ฝั่งเซิร์ฟเวอร์ (service role)
-│     ├─ supabase.ts             client ฝั่ง public (anon) — อ่าน events เท่านั้น
+│     ├─ adminAuth.ts            ตรวจคุกกี้ + ตรวจว่าเป็นแอดมินจริง (R4)
+│     ├─ supabaseServer.ts       client ที่สวมสิทธิ์ผู้ล็อกอิน (แนบ JWT) ใช้ฝั่งเซิร์ฟเวอร์
+│     ├─ supabase.ts             client คีย์สาธารณะ (anon) — ใช้ได้ทั้งสองฝั่ง
 │     └─ types.ts                ชนิดข้อมูลของ 2 ตาราง
 ├─ db/
 │  ├─ schema.sql                 ตาราง index constraint trigger
@@ -96,10 +96,10 @@ rsu-event-register/
 
 | กติกา | เนื้อหา | บังคับที่ client | บังคับที่ server | บังคับที่ DB |
 |---|---|---|---|---|
-| **R1** | อีเมลซ้ำในกิจกรรมเดียวกัน ลงทะเบียนไม่ได้ | – | เทียบแบบ **case-insensitive** (`lower()`) | `unique (event_id, lower(email))` |
-| **R2** | ที่นั่งเต็มแล้วต้องปิดรับ | ซ่อนปุ่มเมื่อเต็ม | นับที่นั่งก่อน insert | trigger `enforce_capacity()` + `select … for update` |
+| **R1** | อีเมลซ้ำในกิจกรรมเดียวกัน ลงทะเบียนไม่ได้ | – | ส่งต่อให้ `create_registration()` ตัดสิน | เทียบด้วย `lower()` + `unique (event_id, lower(email))` |
+| **R2** | ที่นั่งเต็มแล้วต้องปิดรับ | ซ่อนปุ่มเมื่อเต็ม | อ่านที่นั่งคงเหลือจาก `seats_taken()` | `create_registration()` + `select … for update` + trigger |
 | **R3** | ชื่อ/อีเมล/เบอร์ บังคับกรอก อีเมลถูกรูปแบบ เบอร์ 10 หลัก | แจ้งเตือนในฟอร์ม | `validateRegistration()` ตรวจซ้ำ | `check (phone ~ '^[0-9]{10}$')` |
-| **R4** | หน้าแอดมินต้องใส่รหัสผ่านก่อนเข้า | ซ่อน UI | ตรวจคุกกี้ httpOnly ทุก request | ไม่มี policy ให้ `anon` อ่าน `registrations` |
+| **R4** | หน้าแอดมินต้องเข้าสู่ระบบก่อน | ซ่อน UI | `requireAdmin()` ตรวจคุกกี้ httpOnly ทุก request | policy `is_admin()` + ไม่มี policy ให้ `anon` |
 | **R5** | รหัสลงทะเบียนห้ามซ้ำ | – | สุ่มใหม่แล้ว **retry** เมื่อชน | `unique (ticket_code)` |
 
 ข้อห้ามที่เกี่ยวกับ R1–R5 โดยตรง:
@@ -114,14 +114,36 @@ rsu-event-register/
 
 ## 4. ฐานข้อมูลและความปลอดภัย
 
-- **ห้ามแก้ schema โดยไม่ถามฉันก่อน** ถ้าต้องเพิ่ม/แก้คอลัมน์ ให้เสนอ SQL มาก่อน แล้วแก้ที่ `db/schema.sql` เป็นแหล่งความจริงเดียว — ห้ามกด edit ใน Supabase UI แล้วไม่อัปเดตไฟล์
-- **การเข้าถึงตาราง `registrations` ทั้งหมดต้องผ่านฝั่งเซิร์ฟเวอร์เท่านั้น**
-  - `NEXT_PUBLIC_*` = คีย์ที่ผู้ใช้ทุกคนเห็นได้ ใช้อ่าน `events` เท่านั้น
-  - `SUPABASE_SERVICE_ROLE_KEY` = คีย์ฝั่งเซิร์ฟเวอร์ **ห้ามปรากฏในไฟล์ที่มี `"use client"` เด็ดขาด** และห้ามขึ้นต้นด้วย `NEXT_PUBLIC_`
-  - ถ้าต้องอ่าน/เขียน `registrations` จากเบราว์เซอร์ → สร้าง route handler ใต้ `src/app/api/` แทน
+### กติกาข้อแรกของโปรเจกต์นี้ — ตัวแปร environment มีได้แค่ 2 ตัว
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+**ห้ามเพิ่มตัวแปร environment ตัวที่ 3 ไม่ว่ากรณีใด** โดยเฉพาะอย่างยิ่ง
+`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
+หรือชื่ออื่นที่ทำหน้าที่เดียวกัน — ถ้าคิดว่างานที่สั่งทำไม่ได้ถ้าไม่มีคีย์ลับ **ให้หยุดแล้วถามฉันก่อน**
+ส่วนใหญ่แล้วคำตอบคือ "เขียนเป็นฟังก์ชัน `security definer` ใน `db/schema.sql` แทน"
+
+ความปลอดภัยของโปรเจกต์นี้ไม่ได้ฝากไว้กับการซ่อนคีย์ แต่ฝากไว้กับ 3 อย่างนี้
+
+| ชั้น | ไฟล์ | ทำหน้าที่ |
+|---|---|---|
+| Row Level Security | `db/rls.sql` | ใครอ่าน/แก้แถวไหนได้ |
+| ฟังก์ชัน `security definer` | `db/schema.sql` | ประตูเดียวที่เขียน `registrations` ได้ |
+| Supabase Auth + ตาราง `admins` | Dashboard + `db/seed.sql` | รหัสผ่านแอดมินอยู่นอกโค้ดทั้งหมด |
+
+### ข้อห้ามและข้อบังคับ
+
+- **ห้ามแก้ schema โดยไม่ถามฉันก่อน** ถ้าต้องเพิ่ม/แก้คอลัมน์หรือฟังก์ชัน ให้เสนอ SQL มาก่อน แล้วแก้ที่ `db/schema.sql` เป็นแหล่งความจริงเดียว — ห้ามกด edit ใน Supabase UI แล้วไม่อัปเดตไฟล์
+- **ห้ามเขียนตาราง `registrations` ด้วยคำสั่ง `insert` จากโค้ด TypeScript** ทางเดียวคือเรียก `create_registration()` ผ่าน `src/lib/db.ts`
+- **ห้ามอ่านตาราง `registrations` จาก Client Component** ทุกการอ่านต้องผ่าน route handler ใต้ `src/app/api/admin/` ซึ่งเรียก `requireAdmin()` เป็นบรรทัดแรกเสมอ
 - **ห้ามปิด RLS หรือเปิด policy แบบ `using (true)` ให้ตาราง `registrations`** เพื่อให้โค้ดรันผ่าน ถ้าติดสิทธิ์ให้บอกฉัน อย่าแก้ด้วยการเปิดสิทธิ์
+- **ห้ามเขียน policy ว่า `to authenticated using (true)`** — "ล็อกอินแล้ว" ไม่เท่ากับ "เป็นแอดมิน" ต้องผ่าน `public.is_admin()` เสมอ
+- ฟังก์ชัน `security definer` ทุกตัวต้องมี `set search_path = public` และต้อง `revoke execute … from public` ก่อน `grant` ให้ role ที่ตั้งใจ
 - ห้าม log ข้อมูลส่วนบุคคล (ชื่อ อีเมล เบอร์โทร) ลง console หรือส่งออกนอกระบบ
-- ห้าม commit `.env.local` หรือคีย์ใด ๆ ถ้าเพิ่มตัวแปรใหม่ ให้เพิ่มชื่อ (ไม่ใส่ค่า) ลง `.env.example` ด้วยเสมอ
+- ห้าม commit `.env.local` ถ้าเพิ่มตัวแปรใหม่ ให้เพิ่มชื่อ (ไม่ใส่ค่า) ลง `.env.example` ด้วยเสมอ — แต่ดูกติกาข้อแรกก่อนว่าจำเป็นจริงไหม
 
 ---
 
@@ -185,6 +207,10 @@ npx tsc --noEmit # ตรวจชนิดข้อมูล
 ```
 
 SQL ทั้ง 3 ไฟล์รันใน Supabase → SQL Editor ตามลำดับ: `schema.sql` → `rls.sql` → `seed.sql`
+(ห้ามสลับลำดับ — `rls.sql` สั่ง grant ให้ฟังก์ชันที่ `schema.sql` สร้าง)
+
+บัญชีแอดมินสร้างใน Dashboard → Authentication → Users → Add user
+แล้วเพิ่ม `user_id` ลงตาราง `admins` ด้วยคำสั่งท้ายไฟล์ `db/seed.sql`
 
 ---
 

@@ -2,12 +2,22 @@
 // body: { "id": "<registration id>", "checkedIn": true | false }
 
 import { NextResponse, type NextRequest } from "next/server";
-import { isAdminRequest } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 import { setCheckedIn } from "@/lib/db";
+import { missingEnv, missingEnvMessage } from "@/lib/env";
 import { messageFor } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
-  if (!isAdminRequest(request)) {
+  const missing = missingEnv();
+  if (missing.length > 0) {
+    return NextResponse.json(
+      { ok: false, code: "SERVER_ERROR", message: missingEnvMessage(missing) },
+      { status: 503 }
+    );
+  }
+
+  const session = await requireAdmin(request);
+  if (!session) {
     return NextResponse.json(
       { ok: false, code: "UNAUTHORIZED", message: messageFor("UNAUTHORIZED") },
       { status: 401 }
@@ -24,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await setCheckedIn(id, body.checkedIn === true);
+    await setCheckedIn(session.supabase, id, body.checkedIn === true);
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     console.error("[admin/checkin]", error instanceof Error ? error.message : error);

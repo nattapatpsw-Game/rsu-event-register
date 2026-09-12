@@ -25,7 +25,7 @@
    สร้างแบบ lazy คือสร้างตอนถูกเรียกใช้ ไม่ใช่ตอน import
 
 2. src/lib/supabaseServer.ts
-   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก SUPABASE_SERVICE_ROLE_KEY
+   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก SUPABASE_SECRET_KEY
    ใส่คอมเมนต์เตือนไว้ว่าห้าม import ไฟล์นี้จากไฟล์ที่มี "use client"
 
 3. .env.example

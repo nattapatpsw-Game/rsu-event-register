@@ -72,14 +72,14 @@ curl "https://<project>.supabase.co/rest/v1/registrations?select=*" -H "apikey: 
 ค้นทั้งโปรเจกต์ให้ฉัน แล้วตอบเป็นรายการ
 
 1. มีไฟล์ไหนบ้างที่ขึ้นต้นด้วย "use client" แล้ว import supabaseServer หรืออ่าน
-   SUPABASE_SERVICE_ROLE_KEY / ADMIN_PASSWORD / ADMIN_SESSION_SECRET
+   SUPABASE_SECRET_KEY / ADMIN_PASSWORD / ADMIN_SESSION_SECRET
 2. มีที่ไหนบ้างที่เขียนรหัสผ่านหรือคีย์ไว้ตรง ๆ ในโค้ด
 3. มีที่ไหนบ้างที่ console.log ชื่อ อีเมล หรือเบอร์โทรของผู้ลงทะเบียน
 
 รายงานอย่างเดียว ห้ามแก้
 ```
 
-**ตรวจซ้ำด้วยตาตัวเอง:** `npm run build` แล้วค้นคำว่า `service_role` ในโฟลเดอร์ `.next/static/` — ต้องหาไม่เจอ
+**ตรวจซ้ำด้วยตาตัวเอง:** `npm run build` แล้วค้นคำว่า `sb_secret` ในโฟลเดอร์ `.next/static/` — ต้องหาไม่เจอ
 
 ---
 
@@ -123,5 +123,5 @@ curl "https://<project>.supabase.co/rest/v1/registrations?select=*" -H "apikey: 
 
 - [ ] เติมช่อง "เกิดจริง" ในตาราง test case ครบทุกข้อ
 - [ ] ยิง REST ของ Supabase ที่ตาราง `registrations` ด้วย anon key แล้วไม่ได้ข้อมูล
-- [ ] ค้นคำว่า `service_role` ใน `.next/static/` แล้วหาไม่เจอ
+- [ ] ค้นคำว่า `sb_secret` ใน `.next/static/` แล้วหาไม่เจอ
 - [ ] ฟิลด์ส่วนตัวอยู่ครบทั้ง 4 ที่

@@ -1,28 +1,24 @@
-// client ฝั่งเซิร์ฟเวอร์ (service role) — ข้าม RLS ได้
+// client ที่ "สวมสิทธิ์ของผู้ที่ล็อกอินแล้ว" — ใช้ฝั่งเซิร์ฟเวอร์เท่านั้น
 //
-// ★ ห้าม import ไฟล์นี้จากไฟล์ที่มี "use client" เด็ดขาด
-//   ถ้าเผลอ import จะมีคีย์ service role หลุดไปอยู่ใน bundle ที่ผู้ใช้ทุกคนอ่านได้
-//   วิธีตรวจ: หลัง build ให้ค้นคำว่า "service_role" ใน .next/static ต้องไม่เจอ
+// ใช้คีย์สาธารณะตัวเดิม แต่แนบ access token ของผู้ใช้ไปกับทุก request
+// ฐานข้อมูลจึงรู้ว่า auth.uid() คือใคร แล้ว RLS ใน db/rls.sql เป็นคนตัดสินว่าเห็นอะไรได้บ้าง
+//
+// ★ ต่างจากรุ่นก่อนตรงไหน
+//   เดิม  : ใช้ SUPABASE_SECRET_KEY ซึ่งข้าม RLS ได้ "ทุกตาราง ทุกแถว"
+//           ถ้าคีย์หลุด = ข้อมูลทั้งฐานหลุด และถ้าเผลอ import ในไฟล์ "use client" ก็หลุดทันที
+//   ใหม่  : ไม่มีคีย์ที่ข้าม RLS อยู่ในโปรเจกต์เลย
+//           token ของผู้ใช้หมดอายุเองได้ เพิกถอนได้ และให้สิทธิ์เท่าที่ policy เขียนไว้
+//
+// ★ ห้ามสร้าง client ตัวนี้ค้างไว้ใช้ซ้ำ (ห้าม cache) เพราะ token ผูกกับผู้ใช้แต่ละคน
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseConfig } from "@/lib/supabase";
 
-let cached: SupabaseClient | null = null;
+export function getUserSupabase(accessToken: string): SupabaseClient {
+  const { url, anonKey } = getSupabaseConfig();
 
-export function getServerSupabase(): SupabaseClient {
-  if (cached) return cached;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error(
-      "ยังไม่ได้ตั้งค่า SUPABASE_SERVICE_ROLE_KEY — ดูตัวอย่างที่ไฟล์ .env.example " +
-        "(ถ้า deploy แล้วเพิ่งใส่ใน dashboard อย่าลืมสั่ง redeploy)"
-    );
-  }
-
-  cached = createClient(url, serviceRoleKey, {
+  return createClient(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return cached;
 }

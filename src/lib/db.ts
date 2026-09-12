@@ -5,22 +5,23 @@
 //   - เปลี่ยนชื่อคอลัมน์ทีเดียวจบ ไม่ต้องไล่แก้ทุกหน้า
 //   - รู้ได้ทันทีว่า "ใครแตะฐานข้อมูลบ้าง" เวลาตรวจเรื่องความปลอดภัย
 //   - เขียน test ได้ง่าย เพราะตรรกะฐานข้อมูลไม่ปนกับ UI
+//
+// ★ โปรเจกต์นี้ไม่มีคีย์ที่ข้าม RLS ได้ ฟังก์ชันในไฟล์นี้จึงแบ่งเป็น 2 กลุ่มชัดเจน
+//   กลุ่มสาธารณะ : ใช้ anon client เรียก "ฟังก์ชันในฐานข้อมูล" ที่เราเปิดไว้ให้เท่านั้น
+//   กลุ่มแอดมิน  : ต้องรับ supabase ที่สวมสิทธิ์ผู้ล็อกอินเข้ามา (มาจาก requireAdmin)
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPublicSupabase } from "@/lib/supabase";
-import { getServerSupabase } from "@/lib/supabaseServer";
 import { generateTicketCode, normalizeEmail } from "@/lib/validate";
 import type { AppErrorCode, EventRow, RegistrationInput, RegistrationRow } from "@/lib/types";
 
 const TICKET_CODE_MAX_ATTEMPTS = 5;
 
-/** Postgres unique violation */
-const PG_UNIQUE_VIOLATION = "23505";
-
 // ---------------------------------------------------------------------------
-// events — อ่านได้สาธารณะ จึงใช้ anon client ได้
+// กลุ่มสาธารณะ — ใครเปิดเว็บก็ทำได้ (แต่ทำได้แค่ 3 อย่างนี้)
 // ---------------------------------------------------------------------------
 
-/** กิจกรรมล่าสุด (วันนี้มีแถวเดียว คือ งานของคุณเอง) */
+/** กิจกรรมล่าสุด (วันนี้มีแถวเดียว คือ งานของคุณเอง) — events เปิดให้อ่านสาธารณะ */
 export async function getCurrentEvent(): Promise<EventRow | null> {
   const { data, error } = await getPublicSupabase()
     .from("events")
@@ -33,19 +34,20 @@ export async function getCurrentEvent(): Promise<EventRow | null> {
   return (data as EventRow | null) ?? null;
 }
 
-// ---------------------------------------------------------------------------
-// registrations — ฝั่งเซิร์ฟเวอร์เท่านั้น (RLS ปิดตายสำหรับ anon)
-// ---------------------------------------------------------------------------
-
-/** จำนวนที่นั่งที่ถูกจองไปแล้ว */
+/**
+ * จำนวนที่นั่งที่ถูกจองไปแล้ว
+ *
+ * ★ ไม่ได้นับด้วยการ select จากตาราง registrations เพราะคีย์สาธารณะอ่านตารางนั้นไม่ได้
+ *   เรียกฟังก์ชัน seats_taken() ที่คืน "ตัวเลขตัวเดียว" แทน
+ *   หน้าแรกจึงบอกได้ว่าเหลือกี่ที่ โดยไม่มีทางรู้ว่าใครลงบ้าง
+ */
 export async function countRegistrations(eventId: string): Promise<number> {
-  const { count, error } = await getServerSupabase()
-    .from("registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId);
+  const { data, error } = await getPublicSupabase().rpc("seats_taken", {
+    p_event_id: eventId,
+  });
 
   if (error) throw new Error(`นับจำนวนผู้ลงทะเบียนไม่สำเร็จ: ${error.message}`);
-  return count ?? 0;
+  return Number(data ?? 0);
 }
 
 /** ที่นั่งคงเหลือ ไม่ติดลบ */
@@ -54,43 +56,33 @@ export async function getSeatsLeft(event: EventRow): Promise<number> {
   return Math.max(0, event.capacity - taken);
 }
 
-/**
- * R1 — มีอีเมลนี้ในกิจกรรมนี้แล้วหรือยัง
- * เทียบแบบไม่สนตัวพิมพ์เล็ก-ใหญ่ ตรงกับ unique index (event_id, lower(email))
- */
-export async function hasDuplicateEmail(eventId: string, email: string): Promise<boolean> {
-  const { data, error } = await getServerSupabase()
-    .from("registrations")
-    .select("email")
-    .eq("event_id", eventId);
-
-  if (error) throw new Error(`ตรวจอีเมลซ้ำไม่สำเร็จ: ${error.message}`);
-
-  const target = normalizeEmail(email);
-  // เทียบใน JS ด้วย normalizeEmail ตัวเดียวกับที่ฐานข้อมูลใช้ (lower())
-  // ไม่ใช้ ilike เพราะอักขระ _ ในอีเมล (first_last@…) เป็น wildcard ของ LIKE
-  // จะทำให้ตรวจเจอผิดคน
-  return (data ?? []).some(
-    (row) => normalizeEmail((row as { email: string }).email) === target
-  );
-}
-
 export type CreateRegistrationResult =
   | { ok: true; ticketCode: string }
   | { ok: false; code: AppErrorCode };
 
+/** รูปร่างของค่าที่ฟังก์ชัน create_registration() ในฐานข้อมูลคืนกลับมา */
+type CreateRegistrationRpcResult = {
+  ok: boolean;
+  code?: string;
+  ticket_code?: string;
+};
+
 /**
  * บันทึกผู้ลงทะเบียน 1 คน — จุดรวมของกติกา R1 R2 R5
  *
- * ด่านที่ 1 (ที่นี่)      : ตรวจก่อนเพื่อให้ข้อความ error อ่านรู้เรื่อง
- * ด่านที่ 2 (ฐานข้อมูล)  : unique index + trigger เป็นตัวตัดสินจริงเมื่อมีคนกดพร้อมกัน
+ * ★ ไม่ได้ insert จากตรงนี้ เพราะตาราง registrations ไม่เปิดให้ใครเขียนตรง ๆ เลย
+ *   ประตูเดียวคือฟังก์ชัน create_registration() ใน db/schema.sql
+ *   ซึ่งตรวจที่นั่ง ตรวจอีเมลซ้ำ และ insert ในคำสั่งเดียวกัน — คนกดพร้อมกันจึงแซงกันไม่ได้
+ *
+ * ด่านที่ 1 (validate.ts)  : ตรวจก่อนเพื่อให้ข้อความ error อ่านรู้เรื่อง
+ * ด่านที่ 2 (ฐานข้อมูล)    : ฟังก์ชัน + unique index + trigger เป็นตัวตัดสินจริง
  */
 export async function createRegistration(
   input: RegistrationInput
 ): Promise<CreateRegistrationResult> {
-  const supabase = getServerSupabase();
+  const supabase = getPublicSupabase();
 
-  // R2 — ด่านแรก ตรวจที่นั่งเพื่อให้ได้ข้อความที่ถูกต้อง (ด่านจริงคือ trigger)
+  // R2 — ด่านแรก ตรวจที่นั่งเพื่อให้ได้ข้อความที่ถูกต้อง (ด่านจริงคือฟังก์ชันในฐานข้อมูล)
   const { data: eventData, error: eventError } = await supabase
     .from("events")
     .select("id, capacity")
@@ -106,50 +98,66 @@ export async function createRegistration(
     return { ok: false, code: "EVENT_FULL" };
   }
 
-  // R1 — ด่านแรก
-  if (await hasDuplicateEmail(input.eventId, input.email)) {
-    return { ok: false, code: "DUPLICATE_EMAIL" };
-  }
-
   // R5 — สุ่มรหัสแล้ว retry เมื่อชน แทนที่จะล้มเหลวทันที
   for (let attempt = 0; attempt < TICKET_CODE_MAX_ATTEMPTS; attempt++) {
     const ticketCode = generateTicketCode();
 
-    const { error } = await supabase.from("registrations").insert({
-      event_id: input.eventId,
-      full_name: input.fullName.trim(),
-      email: input.email.trim(),
-      phone: input.phone.trim(),
-      faculty: input.faculty.trim() || null,
-      shirt_size: input.shirtSize || null,
-      ticket_code: ticketCode,
-      consent_at: new Date().toISOString(),
+    const { data, error } = await supabase.rpc("create_registration", {
+      p_event_id: input.eventId,
+      p_full_name: input.fullName.trim(),
+      // R1 — เก็บอีเมลในรูปมาตรฐาน (ตัดช่องว่าง + ตัวพิมพ์เล็ก) ด้วยฟังก์ชันตัวเดียวกับที่ทุกที่ใช้
+      p_email: normalizeEmail(input.email),
+      p_phone: input.phone.trim(),
+      p_faculty: input.faculty.trim(),
+      p_shirt_size: input.shirtSize,
+      p_ticket_code: ticketCode,
     });
 
-    if (!error) return { ok: true, ticketCode };
+    if (error) throw new Error(`บันทึกการลงทะเบียนไม่สำเร็จ: ${error.message}`);
 
-    // trigger ฝั่งฐานข้อมูลตะโกนกลับมาเมื่อที่นั่งเต็มระหว่างทาง (คนกดพร้อมกัน)
-    if (error.message.includes("EVENT_FULL")) {
-      return { ok: false, code: "EVENT_FULL" };
-    }
+    const result = data as CreateRegistrationRpcResult | null;
+    if (!result) throw new Error("บันทึกการลงทะเบียนไม่สำเร็จ: ฐานข้อมูลไม่ได้ตอบอะไรกลับมา");
 
-    if (error.code === PG_UNIQUE_VIOLATION) {
-      // ★ 23505 ตัวเดียวมาได้จาก 2 สาเหตุ — ต้องแยกให้ออก ไม่งั้นข้อความจะหลอกผู้ใช้
-      if (error.message.includes("ticket_code")) {
-        continue; // R5 : รหัสชน → สุ่มใหม่
-      }
-      return { ok: false, code: "DUPLICATE_EMAIL" }; // R1 : อีเมลชน (แข่งกันส่งพร้อมกัน)
-    }
+    if (result.ok) return { ok: true, ticketCode: result.ticket_code ?? ticketCode };
 
-    throw new Error(`บันทึกการลงทะเบียนไม่สำเร็จ: ${error.message}`);
+    // R5 : รหัสชน → สุ่มใหม่  (ต่างจาก R1 อีเมลซ้ำ ซึ่งสุ่มใหม่กี่ครั้งก็ไม่ช่วย — ดู AC-5.4)
+    if (result.code === "TICKET_CODE_COLLISION") continue;
+
+    return { ok: false, code: toAppErrorCode(result.code) };
   }
 
   return { ok: false, code: "TICKET_CODE_COLLISION" };
 }
 
-/** รายชื่อผู้ลงทะเบียนสำหรับหน้าแอดมิน (R4 — ผู้เรียกต้องตรวจสิทธิ์มาก่อนแล้ว) */
-export async function listRegistrations(eventId?: string): Promise<RegistrationRow[]> {
-  let query = getServerSupabase()
+/** แปลงรหัสจากฐานข้อมูลเป็นรหัส error ของแอป (ไม่รู้จัก = SERVER_ERROR ไว้ก่อน) */
+function toAppErrorCode(code: string | undefined): AppErrorCode {
+  switch (code) {
+    case "DUPLICATE_EMAIL":
+    case "EVENT_FULL":
+    case "EVENT_NOT_FOUND":
+    case "TICKET_CODE_COLLISION":
+      return code;
+    case "INVALID_INPUT":
+      return "MISSING_FIELD";
+    default:
+      return "SERVER_ERROR";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// กลุ่มแอดมิน — ต้องส่ง supabase ที่สวมสิทธิ์ผู้ล็อกอินเข้ามา
+//
+// ★ สังเกตว่าไม่มีการเช็ก "เป็นแอดมินไหม" ในไฟล์นี้เลย
+//   เพราะเช็กไปแล้ว 2 ชั้น: requireAdmin() ที่ route handler และ policy ใน db/rls.sql
+//   ถ้าใครส่ง client ของคนที่ไม่ใช่แอดมินเข้ามา ฐานข้อมูลจะคืนลิสต์ว่างเอง ไม่ใช่คืนข้อมูล
+// ---------------------------------------------------------------------------
+
+/** รายชื่อผู้ลงทะเบียนสำหรับหน้าแอดมิน (R4) */
+export async function listRegistrations(
+  supabase: SupabaseClient,
+  eventId?: string
+): Promise<RegistrationRow[]> {
+  let query = supabase
     .from("registrations")
     .select("*")
     .order("created_at", { ascending: false });
@@ -163,10 +171,11 @@ export async function listRegistrations(eventId?: string): Promise<RegistrationR
 
 /** สลับสถานะเช็คอิน */
 export async function setCheckedIn(
+  supabase: SupabaseClient,
   registrationId: string,
   checkedIn: boolean
 ): Promise<void> {
-  const { error } = await getServerSupabase()
+  const { error } = await supabase
     .from("registrations")
     .update({ checked_in: checkedIn })
     .eq("id", registrationId);

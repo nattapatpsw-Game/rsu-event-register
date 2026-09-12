@@ -53,11 +53,22 @@ export default function RootLayout({
               RSU Event Register
             </span>
           </div>
+          {/* R4 — มีลิงก์ไปหน้าแอดมินได้ ไม่ใช่ปัญหาด้านความปลอดภัย
+              เพราะการกันคนเข้าอยู่ที่ requireAdmin() + policy ใน db/rls.sql ไม่ใช่ที่การซ่อน URL
+              "ซ่อนทางเข้า" ไม่เคยเป็นการป้องกัน — คนที่ตั้งใจหา เดา /admin ได้ใน 3 วินาที */}
           <nav>
-            <ul className="flex gap-6 text-base font-medium text-gray-700">
+            <ul className="flex gap-4 sm:gap-6 text-base font-medium text-gray-700">
               <li>
                 <Link href="/" className="hover:text-rsu-primary transition-colors">
                   หน้าแรก
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/admin"
+                  className="text-gray-500 hover:text-rsu-primary transition-colors"
+                >
+                  สำหรับเจ้าหน้าที่
                 </Link>
               </li>
             </ul>

@@ -438,7 +438,7 @@ code{font-family:var(--mono);font-size:.92em}
    สร้างแบบ lazy คือสร้างตอนถูกเรียกใช้ ไม่ใช่ตอน import
 
 2. src/lib/supabaseserver.ts
-   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก supabase_service_role_key
+   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก supabase_secret_key
    ใส่คอมเมนต์เตือนไว้ว่าห้าม import ไฟล์นี้จากไฟล์ที่มี &quot;use client&quot;
 
 3. .env.example
@@ -454,7 +454,7 @@ code{font-family:var(--mono);font-size:.92em}
    สร้างแบบ lazy คือสร้างตอนถูกเรียกใช้ ไม่ใช่ตอน import
 
 2. src/lib/supabaseServer.ts
-   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก SUPABASE_SERVICE_ROLE_KEY
+   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก SUPABASE_SECRET_KEY
    ใส่คอมเมนต์เตือนไว้ว่าห้าม import ไฟล์นี้จากไฟล์ที่มี &quot;use client&quot;
 
 3. .env.example
@@ -690,18 +690,18 @@ code{font-family:var(--mono);font-size:.92em}
 โดยไม่ต้องเชื่อคำพูดคุณ — ขอเป็นคำสั่งที่ฉันรันเองได้</pre></div></article><article class="card" data-key="3-P4-4" data-find="p4-4 ตรวจว่าคีย์ลับหลุดไปฝั่งเบราว์เซอร์หรือยัง ก่อนปิดขั้นทดสอบ ค้นทั้งโปรเจกต์ให้ฉัน แล้วตอบเป็นรายการ
 
 1. มีไฟล์ไหนบ้างที่ขึ้นต้นด้วย &quot;use client&quot; แล้ว import supabaseserver หรืออ่าน
-   supabase_service_role_key / admin_password / admin_session_secret
+   supabase_secret_key / admin_password / admin_session_secret
 2. มีที่ไหนบ้างที่เขียนรหัสผ่านหรือคีย์ไว้ตรง ๆ ในโค้ด
 3. มีที่ไหนบ้างที่ console.log ชื่อ อีเมล หรือเบอร์โทรของผู้ลงทะเบียน
 
 รายงานอย่างเดียว ห้ามแก้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-4"><span></span></label><span class="pid">P4-4</span><h3>ตรวจว่าคีย์ลับหลุดไปฝั่งเบราว์เซอร์หรือยัง</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนปิดขั้นทดสอบ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ค้นทั้งโปรเจกต์ให้ฉัน แล้วตอบเป็นรายการ
 
 1. มีไฟล์ไหนบ้างที่ขึ้นต้นด้วย &quot;use client&quot; แล้ว import supabaseServer หรืออ่าน
-   SUPABASE_SERVICE_ROLE_KEY / ADMIN_PASSWORD / ADMIN_SESSION_SECRET
+   SUPABASE_SECRET_KEY / ADMIN_PASSWORD / ADMIN_SESSION_SECRET
 2. มีที่ไหนบ้างที่เขียนรหัสผ่านหรือคีย์ไว้ตรง ๆ ในโค้ด
 3. มีที่ไหนบ้างที่ console.log ชื่อ อีเมล หรือเบอร์โทรของผู้ลงทะเบียน
 
-รายงานอย่างเดียว ห้ามแก้</pre></div><dl class="notes"><div class="note"><dt>ตรวจซ้ำด้วยตาตัวเอง</dt><dd>npm run build แล้วค้นคำว่า service_role ในโฟลเดอร์ .next/static/ — ต้องหาไม่เจอ</dd></div></dl></article><article class="card" data-key="3-P4-5" data-find="p4-5 ตรวจว่าฟิลด์ส่วนตัวอยู่ครบ 4 ที่ ก่อนปิดขั้นทดสอบ — ข้อที่คนลืมบ่อยที่สุด ฟิลด์ส่วนตัวของฉันคือ [ชื่อฟิลด์]
+รายงานอย่างเดียว ห้ามแก้</pre></div><dl class="notes"><div class="note"><dt>ตรวจซ้ำด้วยตาตัวเอง</dt><dd>npm run build แล้วค้นคำว่า sb_secret ในโฟลเดอร์ .next/static/ — ต้องหาไม่เจอ</dd></div></dl></article><article class="card" data-key="3-P4-5" data-find="p4-5 ตรวจว่าฟิลด์ส่วนตัวอยู่ครบ 4 ที่ ก่อนปิดขั้นทดสอบ — ข้อที่คนลืมบ่อยที่สุด ฟิลด์ส่วนตัวของฉันคือ [ชื่อฟิลด์]
 ตรวจให้ฉันว่ามันมีครบทั้ง 4 ที่หรือยัง แล้วตอบเป็นตาราง
 
 1. db/schema.sql
