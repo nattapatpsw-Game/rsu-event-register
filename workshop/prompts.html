@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คลัง Prompt AI-Assisted Coding</title>
+<style>
+html{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+
+:root{
+  --paper:#f7f6f3; --surface:#fff; --ink:#191b1f; --ink-2:#585d66; --ink-3:#8b9098;
+  --rule:#e4e1dc; --accent:#ef3c63; --accent-ink:#c22347; --cool:#2f7fae;
+  --term-bg:#14161a; --term-fg:#e9e7e3; --term-rule:#2c3038;
+  --bad:#a33; --good:#1f7a5c;
+  --shadow:0 1px 2px rgba(20,22,26,.05), 0 8px 24px -16px rgba(20,22,26,.28);
+  --mono:"JetBrains Mono","Cascadia Mono",Consolas,"DejaVu Sans Mono",ui-monospace,monospace;
+  --sans:"Noto Sans Thai","IBM Plex Sans Thai",Sarabun,"Leelawadee UI",Thonburi,Tahoma,system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#121316; --surface:#1a1c21; --ink:#eceae6; --ink-2:#a4a9b2; --ink-3:#767c86;
+    --rule:#2a2d34; --accent:#ff5c7c; --accent-ink:#ff8098; --cool:#6cb6d9;
+    --term-bg:#0d0f12; --term-fg:#e9e7e3; --term-rule:#23262c;
+    --bad:#ff8a8a; --good:#5ecfa6;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#121316; --surface:#1a1c21; --ink:#eceae6; --ink-2:#a4a9b2; --ink-3:#767c86;
+  --rule:#2a2d34; --accent:#ff5c7c; --accent-ink:#ff8098; --cool:#6cb6d9;
+  --term-bg:#0d0f12; --term-fg:#e9e7e3; --term-rule:#23262c;
+  --bad:#ff8a8a; --good:#5ecfa6;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;text-wrap:balance;line-height:1.3}
+code{font-family:var(--mono);font-size:.92em}
+
+/* ---- top bar ---- */
+.top{position:sticky;top:0;z-index:20;background:var(--surface);
+  border-bottom:1px solid var(--rule)}
+.top-in{max-width:1180px;margin:0 auto;padding-block:14px;padding-inline:20px;
+  display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.dot{width:10px;height:34px;border-radius:2px;flex:none;
+  background:linear-gradient(180deg,var(--accent),var(--cool))}
+.brand h1{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.brand p{margin:1px 0 0;font-size:12.5px;color:var(--ink-3);line-height:1.4}
+.tools{display:flex;gap:10px;align-items:center}
+#q{font-family:var(--sans);font-size:14px;padding:8px 12px;width:min(300px,52vw);
+  border:1px solid var(--rule);border-radius:7px;background:var(--paper);color:var(--ink)}
+#q:focus{outline:2px solid var(--accent);outline-offset:1px}
+.tally{font-family:var(--mono);font-size:12px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.tally b{color:var(--accent-ink)}
+
+/* ---- layout ---- */
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:24px 60px;
+  display:grid;grid-template-columns:236px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:860px){ .wrap{grid-template-columns:1fr;gap:16px} }
+
+/* ---- rail ---- */
+.rail{position:sticky;top:76px;display:flex;flex-direction:column;gap:3px}
+.rail-btn{display:flex;align-items:center;gap:9px;width:100%;text-align:start;
+  background:none;border:1px solid transparent;border-radius:8px;padding:8px 10px;
+  cursor:pointer;color:var(--ink-2);font-family:var(--sans);font-size:14px}
+.rail-btn:hover{background:var(--surface);color:var(--ink)}
+.rail-btn[aria-current="true"]{background:var(--surface);border-color:var(--rule);
+  color:var(--ink);box-shadow:var(--shadow)}
+.rail-num{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.04em;
+  color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 12%,transparent);
+  border-radius:5px;padding:3px 6px;flex:none}
+.rail-btn.is-danger .rail-num{color:var(--ink-2);
+  background:color-mix(in srgb,var(--ink-3) 16%,transparent)}
+.rail-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+.rail-txt b{font-weight:600;font-size:14px}
+.rail-txt i{font-style:normal;font-size:11.5px;color:var(--ink-3);line-height:1.3}
+.rail-count{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex:none}
+.rail-tip{margin-top:14px;padding:12px;border-radius:8px;border:1px dashed var(--rule);
+  display:flex;flex-direction:column;gap:6px}
+.rail-tip b{font-size:11.5px;text-transform:none;color:var(--ink-3);font-weight:600}
+.rail-tip span{font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--ink-2)}
+@media (max-width:860px){
+  .rail{position:static;flex-direction:row;align-items:stretch;overflow-x:auto;
+    gap:6px;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+  .rail-tip{display:none}
+  .rail-btn{flex:0 0 auto;width:auto;padding:7px 11px;gap:7px}
+  .rail-txt i{display:none}
+  .rail-count{display:none}
+}
+
+/* ---- panel ---- */
+.panel{display:flex;flex-direction:column;gap:14px}
+.panel-h{font-size:22px;font-weight:700;letter-spacing:-.015em;
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  padding-bottom:10px;border-bottom:2px solid var(--ink)}
+.panel-h span{font-size:12.5px;font-weight:400;color:var(--ink-3);font-family:var(--mono)}
+
+/* ---- card ---- */
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;
+  padding:16px 18px 18px;display:flex;flex-direction:column;gap:11px;box-shadow:var(--shadow)}
+.card.is-done{opacity:.62}
+.card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-head h3{font-size:16px;font-weight:650;flex:1;min-width:160px}
+.card-head h3 em{font-style:normal;color:var(--accent)}
+.pid{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.03em;
+  color:var(--accent-ink);border:1px solid color-mix(in srgb,var(--accent) 32%,transparent);
+  border-radius:5px;padding:2px 7px;flex:none;font-variant-numeric:tabular-nums}
+.tick{position:relative;width:18px;height:18px;flex:none;cursor:pointer}
+.tick input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.tick span{display:block;width:18px;height:18px;border:1.5px solid var(--rule);
+  border-radius:5px;transition:background .12s}
+.tick input:checked + span{background:var(--accent);border-color:var(--accent)}
+.tick input:checked + span::after{content:"";position:absolute;left:6px;top:2px;
+  width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.tick input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.when{margin:0;font-size:13px;color:var(--ink-2)}
+.when span{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);margin-inline-end:8px}
+
+/* ---- terminal block ---- */
+.term{position:relative;background:var(--term-bg);border-radius:8px;
+  border:1px solid var(--term-rule);overflow:hidden}
+.term pre{margin:0;padding:40px 16px 16px;overflow-x:auto;
+  font-family:var(--mono);font-size:12.5px;line-height:1.75;color:var(--term-fg);
+  white-space:pre-wrap;word-break:break-word}
+.term .tone ~ pre{padding-top:10px}
+.term.is-bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--term-rule))}
+.term.is-good{border-color:color-mix(in srgb,var(--good) 45%,var(--term-rule))}
+.tone{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+  padding:7px 16px 0;color:var(--ink-3)}
+.term.is-bad .tone{color:var(--bad)}
+.term.is-good .tone{color:var(--good)}
+.copy{position:absolute;top:8px;inset-inline-end:8px;z-index:2;
+  font-family:var(--sans);font-size:11.5px;padding:5px 11px;border-radius:6px;
+  border:1px solid var(--term-rule);background:rgba(255,255,255,.07);color:var(--term-fg);
+  cursor:pointer;transition:background .12s}
+.copy:hover{background:rgba(255,255,255,.16)}
+.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.copy.ok{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ---- notes ---- */
+.notes{margin:0;display:flex;flex-direction:column;gap:6px}
+.note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:baseline}
+@media (max-width:520px){ .note{grid-template-columns:1fr;gap:2px} }
+.note dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+  color:var(--ink-3);white-space:nowrap;padding-top:2px}
+.note dd{margin:0;font-size:13.5px;color:var(--ink-2)}
+
+.empty{text-align:center;color:var(--ink-3);padding:48px 0}
+.foot{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 48px;
+  font-size:12.5px;color:var(--ink-3);line-height:1.7}
+.foot code{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>คลัง Prompt — AI-Assisted Coding</h1>
+        <p>อบรมเชิงปฏิบัติการพัฒนาเว็บแอปพลิเคชัน · ศูนย์บริการวิชาการ มหาวิทยาลัยรังสิต</p>
+      </div>
+    </div>
+    <div class="tools">
+      <input id="q" type="search" placeholder="ค้นหา prompt…" autocomplete="off" aria-label="ค้นหา prompt">
+      <span class="tally"><b id="done">0</b>/57</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="rail" aria-label="ขั้นตอน">
+    <button class="rail-btn" data-stage="0"><span class="rail-num">P0·1</span><span class="rail-txt"><b>วิเคราะห์</b><i>ก่อนเริ่ม และขั้นที่ 1</i></span><span class="rail-count">8</span></button><button class="rail-btn" data-stage="1"><span class="rail-num">P2</span><span class="rail-txt"><b>ออกแบบ</b><i>ขั้นที่ 2</i></span><span class="rail-count">8</span></button><button class="rail-btn" data-stage="2"><span class="rail-num">P3</span><span class="rail-txt"><b>เขียนโปรแกรม</b><i>ขั้นที่ 3</i></span><span class="rail-count">9</span></button><button class="rail-btn" data-stage="3"><span class="rail-num">P4</span><span class="rail-txt"><b>ทดสอบ</b><i>ขั้นที่ 4</i></span><span class="rail-count">6</span></button><button class="rail-btn" data-stage="4"><span class="rail-num">P5</span><span class="rail-txt"><b>แก้บั๊ก</b><i>ขั้นที่ 5</i></span><span class="rail-count">8</span></button><button class="rail-btn" data-stage="5"><span class="rail-num">P6</span><span class="rail-txt"><b>Deploy</b><i>ขั้นที่ 6</i></span><span class="rail-count">5</span></button><button class="rail-btn" data-stage="6"><span class="rail-num">P7</span><span class="rail-txt"><b>ปิดงาน</b><i>จริยธรรม และการบ้าน</i></span><span class="rail-count">5</span></button><button class="rail-btn is-danger" data-stage="7"><span class="rail-num">✕</span><span class="rail-txt"><b>ห้ามใช้</b><i>prompt ที่ได้ผลตรงข้าม</i></span><span class="rail-count">8</span></button>
+    <div class="rail-tip">
+      <b>3 ประโยคที่ต่อท้าย prompt ไหนก็ได้</b>
+      <span>แตะได้แค่ไฟล์ [ชื่อไฟล์] ห้ามแตะไฟล์อื่น</span>
+      <span>อย่าเพิ่งเขียนโค้ด อธิบายให้ฉันฟังก่อน</span>
+      <span>ถ้าสเปกกำกวมจนทำต่อไม่ได้ ให้ถามฉัน อย่าเดาเอง</span>
+    </div>
+  </nav>
+  <div class="body">
+    <section class="panel" data-stage="0" hidden><h2 class="panel-h">วิเคราะห์<span>ก่อนเริ่ม และขั้นที่ 1</span></h2><article class="card" data-key="0-P0-1" data-find="p0-1 ตรวจความพร้อมของเครื่อง ก่อนเริ่มทุกอย่าง เปิด agy ครั้งแรกในโฟลเดอร์ว่าง ตรวจความพร้อมของเครื่องฉันสำหรับโปรเจกต์ next.js แล้วรายงานเป็นตาราง
+- node เวอร์ชันอะไร (ต้อง 20 ขึ้นไป)
+- npm เวอร์ชันอะไร
+- git ติดตั้งหรือยัง และตั้งค่า user.name กับ user.email แล้วหรือยัง
+- ตอนนี้อยู่ในโฟลเดอร์ไหน
+
+ห้ามติดตั้งอะไรเอง ถ้ามีอะไรขาด ให้บอกฉันว่าต้องติดตั้งอะไรและใช้คำสั่งไหน
+ฉันจะติดตั้งเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P0-1"><span></span></label><span class="pid">P0-1</span><h3>ตรวจความพร้อมของเครื่อง</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนเริ่มทุกอย่าง เปิด agy ครั้งแรกในโฟลเดอร์ว่าง</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจความพร้อมของเครื่องฉันสำหรับโปรเจกต์ Next.js แล้วรายงานเป็นตาราง
+- node เวอร์ชันอะไร (ต้อง 20 ขึ้นไป)
+- npm เวอร์ชันอะไร
+- git ติดตั้งหรือยัง และตั้งค่า user.name กับ user.email แล้วหรือยัง
+- ตอนนี้อยู่ในโฟลเดอร์ไหน
+
+ห้ามติดตั้งอะไรเอง ถ้ามีอะไรขาด ให้บอกฉันว่าต้องติดตั้งอะไรและใช้คำสั่งไหน
+ฉันจะติดตั้งเอง</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>ตาราง 4 แถว พร้อมเวอร์ชันจริง</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันเริ่มรัน npm install หรือ winget install เอง → กด Esc ทันที</dd></div></dl></article><article class="card" data-key="0-P0-2" data-find="p0-2 สร้างโครงโปรเจกต์ งานที่ 1 ของขั้นเขียนโปรแกรม (หรือจะทำตั้งแต่ช่วงเช้าก็ได้) สร้างโปรเจกต์ next.js ใหม่ชื่อ rsu-event-register ในโฟลเดอร์ปัจจุบัน
+ใช้ typescript, app router, tailwind css, วางโค้ดไว้ใต้ src/ และตั้ง alias import เป็น @/*
+ห้ามติดตั้ง library อื่นเพิ่มนอกจากที่ create-next-app ให้มาเอง
+
+เสร็จแล้วให้แสดงโครงไฟล์ที่ได้ และบอกฉันว่าต้องรันคำสั่งอะไรเพื่อเปิดดูในเบราว์เซอร์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P0-2"><span></span></label><span class="pid">P0-2</span><h3>สร้างโครงโปรเจกต์</h3></header><p class="when"><span>ใช้ตอน</span>งานที่ 1 ของขั้นเขียนโปรแกรม (หรือจะทำตั้งแต่ช่วงเช้าก็ได้)</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>สร้างโปรเจกต์ Next.js ใหม่ชื่อ rsu-event-register ในโฟลเดอร์ปัจจุบัน
+ใช้ TypeScript, App Router, Tailwind CSS, วางโค้ดไว้ใต้ src/ และตั้ง alias import เป็น @/*
+ห้ามติดตั้ง library อื่นเพิ่มนอกจากที่ create-next-app ให้มาเอง
+
+เสร็จแล้วให้แสดงโครงไฟล์ที่ได้ และบอกฉันว่าต้องรันคำสั่งอะไรเพื่อเปิดดูในเบราว์เซอร์</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>โฟลเดอร์ src/app/ พร้อม page.tsx และคำสั่ง npm run dev</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>ได้โฟลเดอร์ pages/ แทน src/app/ → นั่นคือ Pages Router ให้สั่งทำใหม่</dd></div></dl></article><article class="card" data-key="0-P0-3" data-find="p0-3 เปิด context ใหม่  ใช้บ่อยที่สุดของวัน ทุกครั้งที่เปิดแชท/หน้าต่าง agent ใหม่ — ก่อนสั่งงานอื่นเสมอ ก่อนทำงานใด ๆ ให้อ่าน 4 ไฟล์นี้ก่อน แล้วสรุปให้ฉันฟังสั้น ๆ ว่าเข้าใจอะไรบ้าง
+1. agents.md
+2. requirements.md
+3. design.md
+4. db/schema.sql
+
+สรุปให้ไม่เกิน 10 บรรทัด และบอกมาด้วยว่ากติกา r1 ถึง r5 คืออะไรบ้าง
+ห้ามแก้ไฟล์ใด ๆ ในรอบนี้ รอฉันสั่งงานถัดไป"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P0-3"><span></span></label><span class="pid">P0-3</span><h3>เปิด context ใหม่  ใช้บ่อยที่สุดของวัน <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ทุกครั้งที่เปิดแชท/หน้าต่าง agent ใหม่ — ก่อนสั่งงานอื่นเสมอ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ก่อนทำงานใด ๆ ให้อ่าน 4 ไฟล์นี้ก่อน แล้วสรุปให้ฉันฟังสั้น ๆ ว่าเข้าใจอะไรบ้าง
+1. AGENTS.md
+2. requirements.md
+3. design.md
+4. db/schema.sql
+
+สรุปให้ไม่เกิน 10 บรรทัด และบอกมาด้วยว่ากติกา R1 ถึง R5 คืออะไรบ้าง
+ห้ามแก้ไฟล์ใด ๆ ในรอบนี้ รอฉันสั่งงานถัดไป</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>สรุปที่มีชื่อ stack ถูกต้อง และเล่า R1–R5 ได้ครบ 5 ข้อ</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันเล่า R1–R5 ผิดหรือขาดข้อ → แปลว่ามันอ่านไม่ครบ ให้สั่งอ่านใหม่ทีละไฟล์</dd></div></dl></article><article class="card" data-key="0-P1-1" data-find="p1-1 ให้ ai สัมภาษณ์เรากลับ  เทคนิคที่เปลี่ยนผลลัพธ์มากที่สุด prompt แรกสุดของขั้นวิเคราะห์ ฉันอยากทำระบบลงทะเบียนกิจกรรมสำหรับงาน [ชื่องานของฉัน]
+
+อย่าเพิ่งเขียนโค้ด และอย่าเพิ่งสรุปสเปกให้ฉัน
+ให้ถามฉัน 5 คำถามที่จำเป็นที่สุดก่อน ทีละคำถาม รอฉันตอบข้อหนึ่งแล้วค่อยถามข้อถัดไป
+
+คำถามต้องเป็นเรื่องที่ &quot;ถ้าไม่รู้แล้วจะออกแบบระบบผิด&quot;
+ไม่ใช่เรื่องสีหรือความสวยงาม"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P1-1"><span></span></label><span class="pid">P1-1</span><h3>ให้ AI สัมภาษณ์เรากลับ  เทคนิคที่เปลี่ยนผลลัพธ์มากที่สุด <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>prompt แรกสุดของขั้นวิเคราะห์</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ฉันอยากทำระบบลงทะเบียนกิจกรรมสำหรับงาน [ชื่องานของฉัน]
+
+อย่าเพิ่งเขียนโค้ด และอย่าเพิ่งสรุปสเปกให้ฉัน
+ให้ถามฉัน 5 คำถามที่จำเป็นที่สุดก่อน ทีละคำถาม รอฉันตอบข้อหนึ่งแล้วค่อยถามข้อถัดไป
+
+คำถามต้องเป็นเรื่องที่ &quot;ถ้าไม่รู้แล้วจะออกแบบระบบผิด&quot;
+ไม่ใช่เรื่องสีหรือความสวยงาม</pre></div><dl class="notes"><div class="note"><dt>ทำไมได้ผล</dt><dd>คนตอบคำถามเก่งกว่าเขียนสเปก คำถามของ AI จะดึงสิ่งที่เรารู้อยู่แล้วแต่ลืมบอกออกมา</dd></div><div class="note"><dt>ควรได้</dt><dd>คำถามทีละข้อจริง ๆ เช่น รับกี่คน · มีค่าลงทะเบียนไหม · ใครดูรายชื่อได้บ้าง</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันยิงคำถามมา 5 ข้อรวดเดียว หรือสรุปสเปกให้เลย → สั่งใหม่ว่า &quot;ทีละคำถาม&quot;</dd></div></dl></article><article class="card" data-key="0-P1-2" data-find="p1-2 สรุปบทสนทนาเป็นไฟล์ ตอบคำถามจาก p1-1 ครบแล้ว สรุปทุกอย่างที่เราคุยกันมาเป็นไฟล์ requirements.md ที่รากโปรเจกต์
+ใช้หัวข้อเหล่านี้เท่านั้น ห้ามเพิ่มหัวข้ออื่น
+
+## ผู้ใช้และเป้าหมาย
+## หน้าจอ 3 หน้า
+## โครงสร้างข้อมูล 2 ตาราง
+## กติกา r1-r5
+## ฟิลด์เพิ่มเติมของฉัน
+## out of scope
+
+เขียนเฉพาะสิ่งที่ฉันบอกไปจริง ๆ ห้ามเติมฟีเจอร์ที่ฉันไม่ได้พูดถึง
+หัวข้อไหนข้อมูลยังไม่พอ ให้เขียนว่า &quot;ยังไม่ได้ตัดสินใจ&quot; แล้วถามฉัน อย่าเดาแทนฉัน"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P1-2"><span></span></label><span class="pid">P1-2</span><h3>สรุปบทสนทนาเป็นไฟล์</h3></header><p class="when"><span>ใช้ตอน</span>ตอบคำถามจาก P1-1 ครบแล้ว</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>สรุปทุกอย่างที่เราคุยกันมาเป็นไฟล์ requirements.md ที่รากโปรเจกต์
+ใช้หัวข้อเหล่านี้เท่านั้น ห้ามเพิ่มหัวข้ออื่น
+
+## ผู้ใช้และเป้าหมาย
+## หน้าจอ 3 หน้า
+## โครงสร้างข้อมูล 2 ตาราง
+## กติกา R1-R5
+## ฟิลด์เพิ่มเติมของฉัน
+## Out of scope
+
+เขียนเฉพาะสิ่งที่ฉันบอกไปจริง ๆ ห้ามเติมฟีเจอร์ที่ฉันไม่ได้พูดถึง
+หัวข้อไหนข้อมูลยังไม่พอ ให้เขียนว่า &quot;ยังไม่ได้ตัดสินใจ&quot; แล้วถามฉัน อย่าเดาแทนฉัน</pre></div><dl class="notes"><div class="note"><dt>ทำไมต้องเป็นไฟล์</dt><dd>ปิดหน้าต่างแล้วบทสนทนาหายหมด แต่ไฟล์ยังอยู่ในโฟลเดอร์</dd></div><div class="note"><dt>ควรได้</dt><dd>ไฟล์ requirements.md โผล่ในโฟลเดอร์จริง (เปิดดูด้วยตาเอง อย่าเชื่อคำพูด)</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันพิมพ์เนื้อหาในแชทแต่ไม่ได้สร้างไฟล์ → สั่งว่า &quot;สร้างเป็นไฟล์จริงในโฟลเดอร์&quot;</dd></div></dl></article><article class="card" data-key="0-P1-3" data-find="p1-3 แปลงเป็น user story + acceptance criteria มี requirements.md แล้ว จากไฟล์ requirements.md ให้ทำ 2 อย่าง แล้วเขียนต่อท้ายในไฟล์เดิม (ห้ามสร้างไฟล์ใหม่)
+
+1. เขียน user story อย่างน้อย 3 ข้อ รูปแบบ
+   ในฐานะ [ใคร] ฉันต้องการ [ทำอะไร] เพื่อ [ได้อะไร]
+
+2. แปลงกติกา r1 ถึง r5 เป็น acceptance criteria ข้อละอย่างน้อย 3 ข้อย่อย
+   แต่ละข้อย่อยต้อง &quot;ทดสอบได้&quot; คือบอกได้ว่า ทำอะไร แล้วต้องเกิดอะไรขึ้น
+   เช่น &quot;กรอกเบอร์ 9 หลักแล้วกดส่ง ต้องขึ้นข้อความเตือน และต้องไม่มีแถวใหม่ในฐานข้อมูล&quot;
+
+ข้อไหนที่คุณเขียนแล้วยังทดสอบไม่ได้ ให้บอกฉันว่าเพราะอะไร"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P1-3"><span></span></label><span class="pid">P1-3</span><h3>แปลงเป็น user story + acceptance criteria</h3></header><p class="when"><span>ใช้ตอน</span>มี requirements.md แล้ว</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>จากไฟล์ requirements.md ให้ทำ 2 อย่าง แล้วเขียนต่อท้ายในไฟล์เดิม (ห้ามสร้างไฟล์ใหม่)
+
+1. เขียน user story อย่างน้อย 3 ข้อ รูปแบบ
+   ในฐานะ [ใคร] ฉันต้องการ [ทำอะไร] เพื่อ [ได้อะไร]
+
+2. แปลงกติกา R1 ถึง R5 เป็น acceptance criteria ข้อละอย่างน้อย 3 ข้อย่อย
+   แต่ละข้อย่อยต้อง &quot;ทดสอบได้&quot; คือบอกได้ว่า ทำอะไร แล้วต้องเกิดอะไรขึ้น
+   เช่น &quot;กรอกเบอร์ 9 หลักแล้วกดส่ง ต้องขึ้นข้อความเตือน และต้องไม่มีแถวใหม่ในฐานข้อมูล&quot;
+
+ข้อไหนที่คุณเขียนแล้วยังทดสอบไม่ได้ ให้บอกฉันว่าเพราะอะไร</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>acceptance criteria รวมอย่างน้อย 15 ข้อย่อย ครบ R1–R5</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>ได้ข้อความกว้าง ๆ อย่าง &quot;ระบบต้องใช้งานง่าย&quot; → นั่นทดสอบไม่ได้ สั่งให้เขียนใหม่</dd></div></dl></article><article class="card" data-key="0-P1-4" data-find="p1-4 ให้ ai หาช่องโหว่ในสเปกของเราเอง ก่อนจบขั้นวิเคราะห์ — ขั้นตอนที่คนข้ามแล้วเสียเวลาตอนบ่าย อ่านไฟล์ requirements.md แล้วทำตัวเป็นคนที่ต้องเขียนโค้ดตามสเปกนี้จริง ๆ
+
+บอกฉันมา 5 จุดที่สเปกยังกำกวมจนคุณต้องเดาเอง
+เรียงจากจุดที่ &quot;เดาผิดแล้วเสียหายมากที่สุด&quot; ลงมา
+แต่ละจุดให้บอกว่า ถ้าเดาไปคนละทางกับที่ฉันคิด ผลลัพธ์จะต่างกันยังไง
+
+ห้ามเขียนโค้ด ห้ามแก้ไฟล์ ห้ามเสนอทางแก้ — ชี้จุดกำกวมอย่างเดียว"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P1-4"><span></span></label><span class="pid">P1-4</span><h3>ให้ AI หาช่องโหว่ในสเปกของเราเอง <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ก่อนจบขั้นวิเคราะห์ — ขั้นตอนที่คนข้ามแล้วเสียเวลาตอนบ่าย</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>อ่านไฟล์ requirements.md แล้วทำตัวเป็นคนที่ต้องเขียนโค้ดตามสเปกนี้จริง ๆ
+
+บอกฉันมา 5 จุดที่สเปกยังกำกวมจนคุณต้องเดาเอง
+เรียงจากจุดที่ &quot;เดาผิดแล้วเสียหายมากที่สุด&quot; ลงมา
+แต่ละจุดให้บอกว่า ถ้าเดาไปคนละทางกับที่ฉันคิด ผลลัพธ์จะต่างกันยังไง
+
+ห้ามเขียนโค้ด ห้ามแก้ไฟล์ ห้ามเสนอทางแก้ — ชี้จุดกำกวมอย่างเดียว</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>คำถามแบบ &quot;ที่นั่งเต็มแล้วให้เข้าคิวสำรองไหม&quot; หรือ &quot;ยกเลิกการลงทะเบียนได้ไหม&quot;</dd></div><div class="note"><dt>ทำต่อยังไง</dt><dd>ตอบทีละข้อ แล้วสั่ง P1-2 ซ้ำเพื่ออัปเดตไฟล์</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันตอบว่า &quot;สเปกชัดเจนดีแล้ว&quot; → สเปกไม่เคยชัดเจน สั่งใหม่ว่า &quot;หาให้ได้ 5 จุด&quot;</dd></div></dl></article><article class="card" data-key="0-P1-5" data-find="p1-5 ตัดขอบเขตให้พอดีเวลา ปิดขั้นวิเคราะห์ จากไฟล์ requirements.md ถ้าฉันมีเวลาเขียนโปรแกรมแค่ 90 นาที
+
+บอกมาว่าอะไรคือ 6 งานที่ต้องทำให้ได้ และอะไรที่ควรตัดไปทำทีหลัง
+เรียงงานตามลำดับที่ทำแล้วเห็นผลเร็วที่สุด
+และแต่ละงานต้อง &quot;จบในตัวเอง&quot; คือทดสอบได้ทันทีโดยไม่ต้องรองานถัดไป
+
+เขียนคำตอบต่อท้ายไฟล์ requirements.md ใต้หัวข้อ ## แผนงาน 6 ขั้น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-0-P1-5"><span></span></label><span class="pid">P1-5</span><h3>ตัดขอบเขตให้พอดีเวลา</h3></header><p class="when"><span>ใช้ตอน</span>ปิดขั้นวิเคราะห์</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>จากไฟล์ requirements.md ถ้าฉันมีเวลาเขียนโปรแกรมแค่ 90 นาที
+
+บอกมาว่าอะไรคือ 6 งานที่ต้องทำให้ได้ และอะไรที่ควรตัดไปทำทีหลัง
+เรียงงานตามลำดับที่ทำแล้วเห็นผลเร็วที่สุด
+และแต่ละงานต้อง &quot;จบในตัวเอง&quot; คือทดสอบได้ทันทีโดยไม่ต้องรองานถัดไป
+
+เขียนคำตอบต่อท้ายไฟล์ requirements.md ใต้หัวข้อ ## แผนงาน 6 ขั้น</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>งานที่แต่ละงานใช้เวลา 10–15 นาที และทดสอบได้เป็นเอกราช</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>ได้งานอย่าง &quot;ทำ backend&quot; หรือ &quot;ทำ frontend&quot; → ใหญ่เกินไป สั่งให้ซอยอีก</dd></div></dl></article></section><section class="panel" data-stage="1" hidden><h2 class="panel-h">ออกแบบ<span>ขั้นที่ 2</span></h2><article class="card" data-key="1-P2-1" data-find="p2-1 ล็อก stack ตั้งแต่ประโยคแรก prompt แรกของขั้นออกแบบ และพูดซ้ำทุกครั้งที่เปิด context ใหม่ก่อนจะมี agents.md โปรเจกต์นี้ใช้ next.js 16 (app router) + typescript + tailwind css v4
++ supabase (postgresql) เท่านั้น และ deploy บน vercel
+
+- ห้ามเปลี่ยน framework และห้ามย้ายไป pages router
+- ห้ามเพิ่ม library ใหม่โดยไม่ถามฉันก่อน ทุกครั้ง ไม่มีข้อยกเว้น
+- ข้อความบนหน้าจอทั้งหมดเป็นภาษาไทย ชื่อตัวแปรและคอมเมนต์เป็นภาษาอังกฤษ
+- ถ้าคุณคิดว่ามีทางที่ดีกว่า ให้บอกฉัน แต่ห้ามเปลี่ยนเอง
+
+ตอบรับว่าเข้าใจแล้ว ยังไม่ต้องเขียนโค้ด"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-1"><span></span></label><span class="pid">P2-1</span><h3>ล็อก stack ตั้งแต่ประโยคแรก <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>prompt แรกของขั้นออกแบบ และพูดซ้ำทุกครั้งที่เปิด context ใหม่ก่อนจะมี AGENTS.md</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>โปรเจกต์นี้ใช้ Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
++ Supabase (PostgreSQL) เท่านั้น และ deploy บน Vercel
+
+- ห้ามเปลี่ยน framework และห้ามย้ายไป Pages Router
+- ห้ามเพิ่ม library ใหม่โดยไม่ถามฉันก่อน ทุกครั้ง ไม่มีข้อยกเว้น
+- ข้อความบนหน้าจอทั้งหมดเป็นภาษาไทย ชื่อตัวแปรและคอมเมนต์เป็นภาษาอังกฤษ
+- ถ้าคุณคิดว่ามีทางที่ดีกว่า ให้บอกฉัน แต่ห้ามเปลี่ยนเอง
+
+ตอบรับว่าเข้าใจแล้ว ยังไม่ต้องเขียนโค้ด</pre></div><dl class="notes"><div class="note"><dt>ปัญหาที่กำลังกัน</dt><dd>เปิดแชทใหม่รอบหน้า AI จะเสนอ stack ใหม่ — เช้า Next.js บ่าย Vite เย็น Express</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันตอบว่า &quot;แนะนำให้ใช้ Vite จะเร็วกว่า&quot; แล้วเริ่มทำ → กด Esc แล้วสั่งใหม่</dd></div></dl></article><article class="card" data-key="1-P2-2" data-find="p2-2 ขอ schema จากสเปก  จากไฟล์ requirements.md ให้ออกแบบตารางฐานข้อมูล 2 ตาราง สำหรับ postgresql บน supabase
+แล้วเขียนเป็นไฟล์ db/schema.sql
+
+เงื่อนไขที่ห้ามพลาด
+- เบอร์โทรเก็บเป็น text ไม่ใช่ number
+- วันเวลาเก็บเป็น timestamptz
+- ตาราง registrations ต้องมี event_id ที่อ้างกลับไปที่ events.id
+- ฟิลด์เพิ่มของฉันคือ [ชื่อฟิลด์ของฉัน] ต้องอยู่ในตาราง registrations ด้วย
+- กติกา r1 r3 r5 ต้องบังคับที่ระดับฐานข้อมูล ไม่ใช่แค่ในโค้ด
+
+ก่อนเขียนไฟล์ ให้อธิบายให้ฉันฟังก่อนว่า constraint หรือ index แต่ละอันบังคับกติกาข้อไหน
+แล้วรอฉันบอกว่า &quot;เขียนได้&quot; จึงค่อยเขียนไฟล์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-2"><span></span></label><span class="pid">P2-2</span><h3>ขอ schema จากสเปก</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>จากไฟล์ requirements.md ให้ออกแบบตารางฐานข้อมูล 2 ตาราง สำหรับ PostgreSQL บน Supabase
+แล้วเขียนเป็นไฟล์ db/schema.sql
+
+เงื่อนไขที่ห้ามพลาด
+- เบอร์โทรเก็บเป็น text ไม่ใช่ number
+- วันเวลาเก็บเป็น timestamptz
+- ตาราง registrations ต้องมี event_id ที่อ้างกลับไปที่ events.id
+- ฟิลด์เพิ่มของฉันคือ [ชื่อฟิลด์ของฉัน] ต้องอยู่ในตาราง registrations ด้วย
+- กติกา R1 R3 R5 ต้องบังคับที่ระดับฐานข้อมูล ไม่ใช่แค่ในโค้ด
+
+ก่อนเขียนไฟล์ ให้อธิบายให้ฉันฟังก่อนว่า constraint หรือ index แต่ละอันบังคับกติกาข้อไหน
+แล้วรอฉันบอกว่า &quot;เขียนได้&quot; จึงค่อยเขียนไฟล์</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>unique index บน (event_id, lower(email)) สำหรับ R1, unique บน ticket_code สำหรับ R5, check เบอร์ 10 หลักสำหรับ R3</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>ได้แค่ create table เปล่า ๆ ไม่มี index ไม่มี check → กติกายังไม่ได้ถูกบังคับที่ไหนเลย</dd></div></dl></article><article class="card" data-key="1-P2-3" data-find="p2-3 ตรวจ schema 4 ข้อ ทันทีหลังได้ db/schema.sql — อย่าข้าม ตรวจไฟล์ db/schema.sql ที่เพิ่งเขียน ตอบฉันเป็นตาราง 4 แถว
+
+1. ไล่ทีละหน้าจอในไฟล์ requirements.md — หน้านั้นต้องแสดงอะไร ฟิลด์มีครบไหม
+   ฟิลด์ส่วนตัวของฉันอยู่ในนั้นด้วยไหม
+2. ชนิดข้อมูลของทุกคอลัมน์ถูกต้องไหม ข้อไหนที่ถ้าผิดแล้วแก้ทีหลังยาก ให้ชี้มา
+3. ความสัมพันธ์ระหว่าง 2 ตารางถูกไหม เป็น one-to-many จริงหรือเปล่า
+4. กติกา r1 ถึง r5 ข้อไหนบ้าง ที่ยังไม่มีอะไรบังคับในไฟล์นี้เลย
+
+ห้ามแก้ไฟล์ในรอบนี้ รายงานอย่างเดียว"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-3"><span></span></label><span class="pid">P2-3</span><h3>ตรวจ schema 4 ข้อ <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ทันทีหลังได้ db/schema.sql — อย่าข้าม</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจไฟล์ db/schema.sql ที่เพิ่งเขียน ตอบฉันเป็นตาราง 4 แถว
+
+1. ไล่ทีละหน้าจอในไฟล์ requirements.md — หน้านั้นต้องแสดงอะไร ฟิลด์มีครบไหม
+   ฟิลด์ส่วนตัวของฉันอยู่ในนั้นด้วยไหม
+2. ชนิดข้อมูลของทุกคอลัมน์ถูกต้องไหม ข้อไหนที่ถ้าผิดแล้วแก้ทีหลังยาก ให้ชี้มา
+3. ความสัมพันธ์ระหว่าง 2 ตารางถูกไหม เป็น one-to-many จริงหรือเปล่า
+4. กติกา R1 ถึง R5 ข้อไหนบ้าง ที่ยังไม่มีอะไรบังคับในไฟล์นี้เลย
+
+ห้ามแก้ไฟล์ในรอบนี้ รายงานอย่างเดียว</pre></div><dl class="notes"><div class="note"><dt>จุดที่มักเจอ</dt><dd>ข้อ 4 มักตอบว่า R2 (ที่นั่งเต็ม) ยังไม่มีอะไรบังคับ — นั่นคือของจริง ไปต่อที่ P2-4</dd></div></dl></article><article class="card" data-key="1-P2-4" data-find="p2-4 กันที่นั่งเกินที่ระดับฐานข้อมูล (r2)  ตอนนี้กติกา r2 (ที่นั่งเต็มแล้วต้องปิดรับ) ยังบังคับได้แค่ในโค้ดฝั่งเซิร์ฟเวอร์
+
+อธิบายให้ฉันฟังก่อนว่า ถ้ามีคน 5 คนกดปุ่มลงทะเบียนพร้อมกันตอนเหลือที่นั่งสุดท้าย 1 ที่
+โค้ดที่ &quot;นับก่อนแล้วค่อยบันทึก&quot; จะเกิดอะไรขึ้น
+
+ถ้าคำอธิบายของคุณตรงกับที่ฉันคิด ให้เพิ่ม trigger ลงในไฟล์ db/schema.sql
+ที่กันที่นั่งเกินได้แม้มีคนกดพร้อมกัน พร้อมคอมเมนต์อธิบายเป็นภาษาไทย
+ห้ามแก้ไฟล์อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-4"><span></span></label><span class="pid">P2-4</span><h3>กันที่นั่งเกินที่ระดับฐานข้อมูล (R2)</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตอนนี้กติกา R2 (ที่นั่งเต็มแล้วต้องปิดรับ) ยังบังคับได้แค่ในโค้ดฝั่งเซิร์ฟเวอร์
+
+อธิบายให้ฉันฟังก่อนว่า ถ้ามีคน 5 คนกดปุ่มลงทะเบียนพร้อมกันตอนเหลือที่นั่งสุดท้าย 1 ที่
+โค้ดที่ &quot;นับก่อนแล้วค่อยบันทึก&quot; จะเกิดอะไรขึ้น
+
+ถ้าคำอธิบายของคุณตรงกับที่ฉันคิด ให้เพิ่ม trigger ลงในไฟล์ db/schema.sql
+ที่กันที่นั่งเกินได้แม้มีคนกดพร้อมกัน พร้อมคอมเมนต์อธิบายเป็นภาษาไทย
+ห้ามแก้ไฟล์อื่น</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>คำอธิบายเรื่อง race condition + trigger ที่ล็อกแถว events (select ... for update)</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันบอกว่า &quot;ไม่น่ามีปัญหา เพราะเช็กก่อนแล้ว&quot; → มันยังไม่เข้าใจ อย่าเพิ่งให้เขียนโค้ด</dd></div></dl></article><article class="card" data-key="1-P2-5" data-find="p2-5 ออกแบบสิทธิ์เข้าถึงฐานข้อมูล (rls) ขั้นออกแบบ ไม่ใช่ไปโผล่ตอนบ่าย — ถ้าออกแบบผิดตั้งแต่ต้น หน้าแอดมินจะต้องรื้อ ออกแบบสิทธิ์เข้าถึงตาราง (row level security) ของ supabase สำหรับโปรเจกต์นี้
+
+เป้าหมาย
+- ใครก็อ่านรายละเอียดกิจกรรมในตาราง events ได้
+- ห้ามใครอ่านหรือเขียนตาราง registrations จากฝั่งเบราว์เซอร์เลย แม้แต่การเพิ่มแถว
+- การลงทะเบียนและหน้าแอดมิน จะเรียกผ่าน route handler ฝั่งเซิร์ฟเวอร์เท่านั้น
+
+เขียนเป็นไฟล์ db/rls.sql พร้อมคอมเมนต์ภาษาไทยอธิบายทีละ policy
+แล้วบอกฉันมาด้วยว่า ฉันจะตรวจเองยังไงว่ามันทำงานจริง โดยไม่ต้องเชื่อคำพูดคุณ"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-5"><span></span></label><span class="pid">P2-5</span><h3>ออกแบบสิทธิ์เข้าถึงฐานข้อมูล (RLS) <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ขั้นออกแบบ ไม่ใช่ไปโผล่ตอนบ่าย — ถ้าออกแบบผิดตั้งแต่ต้น หน้าแอดมินจะต้องรื้อ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ออกแบบสิทธิ์เข้าถึงตาราง (Row Level Security) ของ Supabase สำหรับโปรเจกต์นี้
+
+เป้าหมาย
+- ใครก็อ่านรายละเอียดกิจกรรมในตาราง events ได้
+- ห้ามใครอ่านหรือเขียนตาราง registrations จากฝั่งเบราว์เซอร์เลย แม้แต่การเพิ่มแถว
+- การลงทะเบียนและหน้าแอดมิน จะเรียกผ่าน route handler ฝั่งเซิร์ฟเวอร์เท่านั้น
+
+เขียนเป็นไฟล์ db/rls.sql พร้อมคอมเมนต์ภาษาไทยอธิบายทีละ policy
+แล้วบอกฉันมาด้วยว่า ฉันจะตรวจเองยังไงว่ามันทำงานจริง โดยไม่ต้องเชื่อคำพูดคุณ</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>วิธีตรวจด้วย curl หรือหน้าต่างไม่ระบุตัวตน ยิงไปที่ REST ของ Supabase ตรง ๆ</dd></div><div class="note"><dt>ทำไมต้องย้ำ</dt><dd>AI มักตั้ง policy ให้เปิดกว้าง เพราะปิดแล้วโค้ดที่มันเขียน (อ่านจากเบราว์เซอร์) จะรันไม่ผ่าน</dd></div></dl></article><article class="card" data-key="1-P2-6" data-find="p2-6 เขียน design.md  เขียนไฟล์ design.md ที่รากโปรเจกต์ อธิบาย 3 อย่าง
+
+1. เส้นทางของผู้เข้าร่วม ตั้งแต่เปิดหน้าแรกจนได้รหัสลงทะเบียน
+2. เส้นทางของผู้ดูแล ตั้งแต่เปิด /admin จนกดเช็คอินได้ — ต้องเป็นคนละเส้นกับข้อ 1
+3. ตารางว่ากติกา r1 ถึง r5 แต่ละข้อ ถูกบังคับที่ชั้นไหนบ้าง
+   (เบราว์เซอร์ / เซิร์ฟเวอร์ / ฐานข้อมูล) — ข้อไหนที่มีแค่ชั้นเดียว ให้ทำตัวหนาไว้
+
+ใช้ข้อความและตารางเท่านั้น ไม่ต้องวาดรูป ไม่ต้องเขียนโค้ด"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-6"><span></span></label><span class="pid">P2-6</span><h3>เขียน design.md</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เขียนไฟล์ design.md ที่รากโปรเจกต์ อธิบาย 3 อย่าง
+
+1. เส้นทางของผู้เข้าร่วม ตั้งแต่เปิดหน้าแรกจนได้รหัสลงทะเบียน
+2. เส้นทางของผู้ดูแล ตั้งแต่เปิด /admin จนกดเช็คอินได้ — ต้องเป็นคนละเส้นกับข้อ 1
+3. ตารางว่ากติกา R1 ถึง R5 แต่ละข้อ ถูกบังคับที่ชั้นไหนบ้าง
+   (เบราว์เซอร์ / เซิร์ฟเวอร์ / ฐานข้อมูล) — ข้อไหนที่มีแค่ชั้นเดียว ให้ทำตัวหนาไว้
+
+ใช้ข้อความและตารางเท่านั้น ไม่ต้องวาดรูป ไม่ต้องเขียนโค้ด</pre></div><dl class="notes"><div class="note"><dt>ควรได้</dt><dd>ตารางที่ทำให้เห็นทันทีว่ากติกาข้อไหนยังบาง</dd></div><div class="note"><dt>ประโยคที่ต้องจำจากสไลด์นี้</dt><dd>*ชั้นเบราว์เซอร์คือความสะดวก ชั้นฐานข้อมูลคือความจริง*</dd></div></dl></article><article class="card" data-key="1-P2-7" data-find="p2-7 สร้าง agents.md  ของที่ติดตัวโปรเจกต์ไปตลอด  สร้างไฟล์ agents.md ที่รากโปรเจกต์
+เป็นกติกาที่ ai ทุกตัวที่มาทำงานในโปรเจกต์นี้ต้องทำตาม
+
+ให้ครอบคลุม
+- ไฟล์ที่ต้องอ่านก่อนเริ่มงานทุกครั้ง
+- stack ที่ล็อกไว้ พร้อมเวอร์ชัน และข้อห้ามเพิ่ม library
+- โครงไฟล์จริงของโปรเจกต์นี้ และกติกาการตั้งชื่อไฟล์กับโฟลเดอร์
+- กติกา r1 ถึง r5 พร้อมระบุว่าแต่ละข้อบังคับที่ชั้นไหน
+- กติกาเรื่องคีย์ลับและสิทธิ์เข้าถึงฐานข้อมูล
+- ภาษาที่ใช้บนหน้าจอและในโค้ด
+- สิ่งที่ห้ามทำ
+- นิยามของคำว่า &quot;งานเสร็จ&quot;
+
+เขียนเป็นข้อ ๆ สั้น ๆ อ่านแล้วทำตามได้ทันที ห้ามเขียนเป็นย่อหน้ายาว"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-7"><span></span></label><span class="pid">P2-7</span><h3>สร้าง AGENTS.md  ของที่ติดตัวโปรเจกต์ไปตลอด <em>★</em></h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>สร้างไฟล์ AGENTS.md ที่รากโปรเจกต์
+เป็นกติกาที่ AI ทุกตัวที่มาทำงานในโปรเจกต์นี้ต้องทำตาม
+
+ให้ครอบคลุม
+- ไฟล์ที่ต้องอ่านก่อนเริ่มงานทุกครั้ง
+- stack ที่ล็อกไว้ พร้อมเวอร์ชัน และข้อห้ามเพิ่ม library
+- โครงไฟล์จริงของโปรเจกต์นี้ และกติกาการตั้งชื่อไฟล์กับโฟลเดอร์
+- กติกา R1 ถึง R5 พร้อมระบุว่าแต่ละข้อบังคับที่ชั้นไหน
+- กติกาเรื่องคีย์ลับและสิทธิ์เข้าถึงฐานข้อมูล
+- ภาษาที่ใช้บนหน้าจอและในโค้ด
+- สิ่งที่ห้ามทำ
+- นิยามของคำว่า &quot;งานเสร็จ&quot;
+
+เขียนเป็นข้อ ๆ สั้น ๆ อ่านแล้วทำตามได้ทันที ห้ามเขียนเป็นย่อหน้ายาว</pre></div><dl class="notes"><div class="note"><dt>สกิล vs AGENTS.md</dt><dd>สกิลคือ *สไตล์การทำงานของฉัน* ติดตัวเราไปทุกโปรเจกต์</dd></div><div class="note"><dt>เครื่องมืออื่น</dt><dd>ถ้าใช้ Claude Code ให้สร้างไฟล์ CLAUDE.md ที่มีบรรทัดเดียวว่า @AGENTS.md</dd></div></dl></article><article class="card" data-key="1-P2-8" data-find="p2-8 ให้ ai ตรวจ agents.md ของตัวเอง หลังเขียน agents.md เสร็จ — ใช้เวลา 2 นาที คุ้มมาก อ่านไฟล์ agents.md ที่เพิ่งเขียน แล้วตอบฉัน 2 ข้อ
+
+1. มีข้อไหนบ้างที่เขียนกำกวมจนคุณตีความได้หลายทาง ยกตัวอย่างการตีความที่ต่างกันมาให้ดู
+2. ถ้าฉันสั่งงานที่ขัดกับกติกาในไฟล์นี้ คุณจะทำอะไร — ตอบเป็นประโยคเดียว
+
+ห้ามแก้ไฟล์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-1-P2-8"><span></span></label><span class="pid">P2-8</span><h3>ให้ AI ตรวจ AGENTS.md ของตัวเอง</h3></header><p class="when"><span>ใช้ตอน</span>หลังเขียน AGENTS.md เสร็จ — ใช้เวลา 2 นาที คุ้มมาก</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>อ่านไฟล์ AGENTS.md ที่เพิ่งเขียน แล้วตอบฉัน 2 ข้อ
+
+1. มีข้อไหนบ้างที่เขียนกำกวมจนคุณตีความได้หลายทาง ยกตัวอย่างการตีความที่ต่างกันมาให้ดู
+2. ถ้าฉันสั่งงานที่ขัดกับกติกาในไฟล์นี้ คุณจะทำอะไร — ตอบเป็นประโยคเดียว
+
+ห้ามแก้ไฟล์</pre></div><dl class="notes"><div class="note"><dt>คำตอบที่ถูกของข้อ 2</dt><dd>&quot;จะหยุดแล้วถามคุณก่อน ไม่เลือกข้างเอง&quot;</dd></div><div class="note"><dt>ถ้าตอบว่า &quot;จะทำตามที่คุณสั่ง&quot;</dt><dd>ให้เพิ่มบรรทัดนั้นลงใน AGENTS.md ชัด ๆ</dd></div></dl></article></section><section class="panel" data-stage="2" hidden><h2 class="panel-h">เขียนโปรแกรม<span>ขั้นที่ 3</span></h2><article class="card" data-key="2-P3-1" data-find="p3-1 งานที่ 1 — เชื่อมฐานข้อมูล  เชื่อมโปรเจกต์กับ supabase สร้าง 3 ไฟล์นี้
+
+1. src/lib/supabase.ts
+   client ฝั่งสาธารณะ อ่านค่าจาก next_public_supabase_url และ next_public_supabase_anon_key
+   สร้างแบบ lazy คือสร้างตอนถูกเรียกใช้ ไม่ใช่ตอน import
+
+2. src/lib/supabaseserver.ts
+   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก supabase_service_role_key
+   ใส่คอมเมนต์เตือนไว้ว่าห้าม import ไฟล์นี้จากไฟล์ที่มี &quot;use client&quot;
+
+3. .env.example
+   มีชื่อตัวแปรครบทุกตัวแต่ไม่ใส่ค่าจริง พร้อมคอมเมนต์ว่าตัวไหน public ตัวไหนลับ
+
+ถ้าตัวแปรไม่ครบ ให้ throw error ที่อ่านรู้เรื่องเป็นภาษาไทย
+ห้ามใส่ค่า placeholder ปลอมแทน เพราะจะทำให้เว็บเงียบ ๆ ไม่มีข้อมูลโดยไม่มี error ให้เห็น
+
+แตะได้แค่ 3 ไฟล์นี้ ห้ามแตะไฟล์อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-1"><span></span></label><span class="pid">P3-1</span><h3>งานที่ 1 — เชื่อมฐานข้อมูล</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เชื่อมโปรเจกต์กับ Supabase สร้าง 3 ไฟล์นี้
+
+1. src/lib/supabase.ts
+   client ฝั่งสาธารณะ อ่านค่าจาก NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_ANON_KEY
+   สร้างแบบ lazy คือสร้างตอนถูกเรียกใช้ ไม่ใช่ตอน import
+
+2. src/lib/supabaseServer.ts
+   client ฝั่งเซิร์ฟเวอร์ อ่านค่าจาก SUPABASE_SERVICE_ROLE_KEY
+   ใส่คอมเมนต์เตือนไว้ว่าห้าม import ไฟล์นี้จากไฟล์ที่มี &quot;use client&quot;
+
+3. .env.example
+   มีชื่อตัวแปรครบทุกตัวแต่ไม่ใส่ค่าจริง พร้อมคอมเมนต์ว่าตัวไหน public ตัวไหนลับ
+
+ถ้าตัวแปรไม่ครบ ให้ throw error ที่อ่านรู้เรื่องเป็นภาษาไทย
+ห้ามใส่ค่า placeholder ปลอมแทน เพราะจะทำให้เว็บเงียบ ๆ ไม่มีข้อมูลโดยไม่มี error ให้เห็น
+
+แตะได้แค่ 3 ไฟล์นี้ ห้ามแตะไฟล์อื่น</pre></div><dl class="notes"><div class="note"><dt>ทำไมห้าม placeholder</dt><dd>ถ้าใส่ https://placeholder.supabase.co ไว้ พอลืมตั้ง env ตอน deploy</dd></div></dl></article><article class="card" data-key="2-P3-2" data-find="p3-2 งานที่ 2 — ชั้นข้อมูลและชั้นตรวจ  สร้าง 3 ไฟล์นี้ ห้ามแตะไฟล์อื่น
+
+1. src/lib/types.ts
+   ชนิดข้อมูลของ 2 ตารางให้ตรงกับ db/schema.sql เป๊ะ
+   และรายการรหัส error พร้อมข้อความภาษาไทยของแต่ละรหัส
+
+2. src/lib/validate.ts
+   - normalizeemail : ตัดช่องว่างหัวท้าย และแปลงเป็นตัวพิมพ์เล็ก
+   - isvalidemail, isvalidphone (10 หลักพอดี)
+   - validateregistration : ตรวจตามกติกา r3 คืนรหัส error ตัวแรกที่เจอ
+   - generateticketcode : สุ่มรหัสลงทะเบียน
+
+3. src/lib/db.ts
+   ฟังก์ชันที่คุยกับฐานข้อมูลทั้งหมด — อ่านกิจกรรมล่าสุด นับที่นั่ง ตรวจอีเมลซ้ำ
+   เพิ่มผู้ลงทะเบียน อ่านรายชื่อ อัปเดตสถานะเช็คอิน
+
+กติกา
+- ห้ามใช้ any ที่ไหนเลย
+- ข้อความที่ผู้ใช้จะเห็น เป็นภาษาไทยทั้งหมด
+- ตั้งแต่นี้ไป ไฟล์อื่นทั้งโปรเจกต์ต้องเรียกฐานข้อมูลผ่าน db.ts เท่านั้น
+
+เสร็จแล้วรัน npx tsc --noemit แล้วรายงานผลจริงให้ฉันดู"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-2"><span></span></label><span class="pid">P3-2</span><h3>งานที่ 2 — ชั้นข้อมูลและชั้นตรวจ</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>สร้าง 3 ไฟล์นี้ ห้ามแตะไฟล์อื่น
+
+1. src/lib/types.ts
+   ชนิดข้อมูลของ 2 ตารางให้ตรงกับ db/schema.sql เป๊ะ
+   และรายการรหัส error พร้อมข้อความภาษาไทยของแต่ละรหัส
+
+2. src/lib/validate.ts
+   - normalizeEmail : ตัดช่องว่างหัวท้าย และแปลงเป็นตัวพิมพ์เล็ก
+   - isValidEmail, isValidPhone (10 หลักพอดี)
+   - validateRegistration : ตรวจตามกติกา R3 คืนรหัส error ตัวแรกที่เจอ
+   - generateTicketCode : สุ่มรหัสลงทะเบียน
+
+3. src/lib/db.ts
+   ฟังก์ชันที่คุยกับฐานข้อมูลทั้งหมด — อ่านกิจกรรมล่าสุด นับที่นั่ง ตรวจอีเมลซ้ำ
+   เพิ่มผู้ลงทะเบียน อ่านรายชื่อ อัปเดตสถานะเช็คอิน
+
+กติกา
+- ห้ามใช้ any ที่ไหนเลย
+- ข้อความที่ผู้ใช้จะเห็น เป็นภาษาไทยทั้งหมด
+- ตั้งแต่นี้ไป ไฟล์อื่นทั้งโปรเจกต์ต้องเรียกฐานข้อมูลผ่าน db.ts เท่านั้น
+
+เสร็จแล้วรัน npx tsc --noEmit แล้วรายงานผลจริงให้ฉันดู</pre></div></article><article class="card" data-key="2-P3-3" data-find="p3-3 งานที่ 3 — หน้าแรก  แก้ไฟล์ src/app/page.tsx ให้เป็นหน้าแรกของระบบ
+
+- เป็น server component
+- เรียก getcurrentevent() และ getseatsleft() จาก @/lib/db เท่านั้น ห้ามเรียก supabase ตรง ๆ
+- แสดง ชื่องาน รายละเอียด วันเวลา (locale th-th) สถานที่ ที่นั่งทั้งหมด และที่นั่งคงเหลือ
+- ถ้าที่นั่งเหลือมากกว่า 0 ให้แสดงปุ่มไปหน้า /register พร้อมส่ง eventid ไปด้วย
+- ถ้าเต็มแล้ว ให้แสดงข้อความ &quot;ที่นั่งเต็มแล้ว&quot; แทนปุ่ม (กติกา r2)
+- ถ้ายังไม่มีกิจกรรมในฐานข้อมูล ให้แสดงข้อความบอกว่าต้องรันไฟล์ sql ก่อน
+- ที่นั่งคงเหลือต้องเป็นค่าสด ห้ามให้ next แคชหน้านี้
+
+แตะได้แค่ไฟล์ src/app/page.tsx ไฟล์เดียว"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-3"><span></span></label><span class="pid">P3-3</span><h3>งานที่ 3 — หน้าแรก</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>แก้ไฟล์ src/app/page.tsx ให้เป็นหน้าแรกของระบบ
+
+- เป็น Server Component
+- เรียก getCurrentEvent() และ getSeatsLeft() จาก @/lib/db เท่านั้น ห้ามเรียก supabase ตรง ๆ
+- แสดง ชื่องาน รายละเอียด วันเวลา (locale th-TH) สถานที่ ที่นั่งทั้งหมด และที่นั่งคงเหลือ
+- ถ้าที่นั่งเหลือมากกว่า 0 ให้แสดงปุ่มไปหน้า /register พร้อมส่ง eventId ไปด้วย
+- ถ้าเต็มแล้ว ให้แสดงข้อความ &quot;ที่นั่งเต็มแล้ว&quot; แทนปุ่ม (กติกา R2)
+- ถ้ายังไม่มีกิจกรรมในฐานข้อมูล ให้แสดงข้อความบอกว่าต้องรันไฟล์ SQL ก่อน
+- ที่นั่งคงเหลือต้องเป็นค่าสด ห้ามให้ Next แคชหน้านี้
+
+แตะได้แค่ไฟล์ src/app/page.tsx ไฟล์เดียว</pre></div><dl class="notes"><div class="note"><dt>ทดสอบทันที</dt><dd>เปิด http://localhost:3000 ต้องเห็นชื่องานของตัวเอง แล้ว git commit</dd></div></dl></article><article class="card" data-key="2-P3-4" data-find="p3-4 งานที่ 4 — ฟอร์มลงทะเบียน + ตรวจข้อมูล (r3)  แก้ไฟล์ src/app/register/page.tsx ให้เป็นฟอร์มลงทะเบียน
+
+ช่องกรอก
+- ชื่อ-นามสกุล (บังคับ)
+- อีเมล (บังคับ)
+- เบอร์โทรศัพท์ (บังคับ)
+- คณะ/หน่วยงาน (ไม่บังคับ)
+- [ฟิลด์ส่วนตัวของฉัน]
+
+กติกา
+- ตรวจตาม r3 โดยเรียกฟังก์ชันจาก @/lib/validate ห้ามเขียน regex ซ้ำในไฟล์นี้
+- มี checkbox ยินยอมให้เก็บข้อมูลส่วนบุคคล ที่ไม่ติ๊กไว้ล่วงหน้า ไม่ติ๊กแล้วส่งไม่ได้
+  พร้อมข้อความบอกว่าเก็บข้อมูลไปทำอะไร เก็บนานแค่ไหน และใครเห็นได้บ้าง
+- ข้อความ error ทุกอันเป็นภาษาไทย
+- รอบนี้ยังไม่ต้องบันทึกลงฐานข้อมูล กดส่งแล้วให้ขึ้นข้อความว่าผ่านการตรวจแล้วพอ
+
+แตะได้แค่ไฟล์ src/app/register/page.tsx ไฟล์เดียว"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-4"><span></span></label><span class="pid">P3-4</span><h3>งานที่ 4 — ฟอร์มลงทะเบียน + ตรวจข้อมูล (R3)</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>แก้ไฟล์ src/app/register/page.tsx ให้เป็นฟอร์มลงทะเบียน
+
+ช่องกรอก
+- ชื่อ-นามสกุล (บังคับ)
+- อีเมล (บังคับ)
+- เบอร์โทรศัพท์ (บังคับ)
+- คณะ/หน่วยงาน (ไม่บังคับ)
+- [ฟิลด์ส่วนตัวของฉัน]
+
+กติกา
+- ตรวจตาม R3 โดยเรียกฟังก์ชันจาก @/lib/validate ห้ามเขียน regex ซ้ำในไฟล์นี้
+- มี checkbox ยินยอมให้เก็บข้อมูลส่วนบุคคล ที่ไม่ติ๊กไว้ล่วงหน้า ไม่ติ๊กแล้วส่งไม่ได้
+  พร้อมข้อความบอกว่าเก็บข้อมูลไปทำอะไร เก็บนานแค่ไหน และใครเห็นได้บ้าง
+- ข้อความ error ทุกอันเป็นภาษาไทย
+- รอบนี้ยังไม่ต้องบันทึกลงฐานข้อมูล กดส่งแล้วให้ขึ้นข้อความว่าผ่านการตรวจแล้วพอ
+
+แตะได้แค่ไฟล์ src/app/register/page.tsx ไฟล์เดียว</pre></div></article><article class="card" data-key="2-P3-5" data-find="p3-5 งานที่ 5 — บันทึกลงฐานข้อมูล + ออกรหัส (r1 r2 r5)  ทำให้ฟอร์มบันทึกลงฐานข้อมูลได้จริง แก้ 2 ไฟล์
+
+1. สร้าง src/app/api/register/route.ts รับ post
+   - ตรวจข้อมูลซ้ำที่เซิร์ฟเวอร์ ด้วยฟังก์ชันชุดเดียวกับที่หน้าจอใช้ (r3)
+     เพราะคนอาจปิด javascript หรือยิง api ตรง ๆ
+   - ตรวจอีเมลซ้ำในกิจกรรมเดียวกัน แบบไม่สนตัวพิมพ์เล็ก-ใหญ่ (r1)
+   - ตรวจที่นั่งเต็ม โดย &quot;เต็ม&quot; คือ จำนวนที่ลงแล้ว &gt;= capacity (r2)
+   - ออกรหัสลงทะเบียน ถ้าสุ่มชนกับของเดิมให้สุ่มใหม่ ไม่ใช่ล้มเหลว (r5)
+   - ★ ข้อความ error ของ &quot;อีเมลซ้ำ&quot; กับ &quot;รหัสลงทะเบียนชน&quot; ต้องไม่ใช่ข้อความเดียวกัน
+     ทั้งที่ทั้งคู่มาจาก error 23505 ของ postgres เหมือนกัน
+
+2. แก้ src/app/register/page.tsx ให้ยิงไปที่ /api/register
+   แสดงรหัสลงทะเบียนเมื่อสำเร็จ และกันการกดปุ่มซ้ำระหว่างรอผลลัพธ์
+
+แตะได้แค่ 2 ไฟล์นี้
+เสร็จแล้วรัน npx tsc --noemit แล้วรายงานผลจริง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-5"><span></span></label><span class="pid">P3-5</span><h3>งานที่ 5 — บันทึกลงฐานข้อมูล + ออกรหัส (R1 R2 R5)</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ทำให้ฟอร์มบันทึกลงฐานข้อมูลได้จริง แก้ 2 ไฟล์
+
+1. สร้าง src/app/api/register/route.ts รับ POST
+   - ตรวจข้อมูลซ้ำที่เซิร์ฟเวอร์ ด้วยฟังก์ชันชุดเดียวกับที่หน้าจอใช้ (R3)
+     เพราะคนอาจปิด JavaScript หรือยิง API ตรง ๆ
+   - ตรวจอีเมลซ้ำในกิจกรรมเดียวกัน แบบไม่สนตัวพิมพ์เล็ก-ใหญ่ (R1)
+   - ตรวจที่นั่งเต็ม โดย &quot;เต็ม&quot; คือ จำนวนที่ลงแล้ว &gt;= capacity (R2)
+   - ออกรหัสลงทะเบียน ถ้าสุ่มชนกับของเดิมให้สุ่มใหม่ ไม่ใช่ล้มเหลว (R5)
+   - ★ ข้อความ error ของ &quot;อีเมลซ้ำ&quot; กับ &quot;รหัสลงทะเบียนชน&quot; ต้องไม่ใช่ข้อความเดียวกัน
+     ทั้งที่ทั้งคู่มาจาก error 23505 ของ Postgres เหมือนกัน
+
+2. แก้ src/app/register/page.tsx ให้ยิงไปที่ /api/register
+   แสดงรหัสลงทะเบียนเมื่อสำเร็จ และกันการกดปุ่มซ้ำระหว่างรอผลลัพธ์
+
+แตะได้แค่ 2 ไฟล์นี้
+เสร็จแล้วรัน npx tsc --noEmit แล้วรายงานผลจริง</pre></div><dl class="notes"><div class="note"><dt>จุดที่ทุกคนพลาด</dt><dd>แปลง error 23505 เป็นข้อความเดียวรวด ทำให้ตอนรหัสชน ผู้ใช้เห็นว่า &quot;อีเมลซ้ำ&quot;</dd></div></dl></article><article class="card" data-key="2-P3-6" data-find="p3-6 งานที่ 6 — หน้าแอดมิน + รหัสผ่าน (r4)  ทำหน้าแอดมินและระบบเข้าสู่ระบบ สร้าง/แก้ 5 ไฟล์
+
+1. src/lib/adminauth.ts
+   ตรวจรหัสผ่านจากตัวแปร admin_password และสร้าง/ตรวจคุกกี้ session
+2. src/app/api/admin/login/route.ts
+   ตรวจรหัสผ่านที่เซิร์ฟเวอร์ ผ่านแล้วตั้งคุกกี้แบบ httponly
+3. src/app/api/admin/registrations/route.ts
+   get รายชื่อผู้ลงทะเบียน ถ้าไม่มีคุกกี้ต้องตอบ 401 และต้องไม่มีข้อมูลหลุดออกไปเลย
+4. src/app/api/admin/checkin/route.ts
+   post สลับสถานะเช็คอิน ถ้าไม่มีคุกกี้ต้องตอบ 401
+5. src/app/admin/page.tsx
+   ตารางผู้ลงทะเบียน เรียกข้อมูลผ่าน api ทั้งหมด ห้ามเรียก supabase ตรง ๆ
+
+ข้อห้ามสำคัญที่สุด
+- รหัสผ่านต้องไม่ปรากฏในไฟล์ที่มี &quot;use client&quot; เด็ดขาด
+- ห้ามแสดงรหัสผ่านตัวอย่างบนหน้าจอ
+
+ทำเสร็จให้บอกฉันว่า ฉันจะตรวจเองยังไงว่ารหัสผ่านไม่หลุดไปฝั่งเบราว์เซอร์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-6"><span></span></label><span class="pid">P3-6</span><h3>งานที่ 6 — หน้าแอดมิน + รหัสผ่าน (R4)</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ทำหน้าแอดมินและระบบเข้าสู่ระบบ สร้าง/แก้ 5 ไฟล์
+
+1. src/lib/adminAuth.ts
+   ตรวจรหัสผ่านจากตัวแปร ADMIN_PASSWORD และสร้าง/ตรวจคุกกี้ session
+2. src/app/api/admin/login/route.ts
+   ตรวจรหัสผ่านที่เซิร์ฟเวอร์ ผ่านแล้วตั้งคุกกี้แบบ httpOnly
+3. src/app/api/admin/registrations/route.ts
+   GET รายชื่อผู้ลงทะเบียน ถ้าไม่มีคุกกี้ต้องตอบ 401 และต้องไม่มีข้อมูลหลุดออกไปเลย
+4. src/app/api/admin/checkin/route.ts
+   POST สลับสถานะเช็คอิน ถ้าไม่มีคุกกี้ต้องตอบ 401
+5. src/app/admin/page.tsx
+   ตารางผู้ลงทะเบียน เรียกข้อมูลผ่าน API ทั้งหมด ห้ามเรียก supabase ตรง ๆ
+
+ข้อห้ามสำคัญที่สุด
+- รหัสผ่านต้องไม่ปรากฏในไฟล์ที่มี &quot;use client&quot; เด็ดขาด
+- ห้ามแสดงรหัสผ่านตัวอย่างบนหน้าจอ
+
+ทำเสร็จให้บอกฉันว่า ฉันจะตรวจเองยังไงว่ารหัสผ่านไม่หลุดไปฝั่งเบราว์เซอร์</pre></div></article><article class="card" data-key="2-P3-7" data-find="p3-7 งานที่ 7 — ค้นหา + ส่งออก csv  เพิ่ม 2 อย่างในไฟล์ src/app/admin/page.tsx เท่านั้น
+
+1. ช่องค้นหา กรองจากชื่อ อีเมล และรหัสลงทะเบียน แบบไม่สนตัวพิมพ์เล็ก-ใหญ่
+
+2. ปุ่มส่งออก csv ที่ส่งออกเฉพาะแถวที่กำลังกรองอยู่ตอนนั้น
+   - ต้องใส่ bom เพื่อให้ excel อ่านภาษาไทยได้ ไม่กลายเป็นตัวต่างดาว
+   - เบอร์โทรต้องไม่ถูก excel ตัดเลข 0 ตัวหน้าทิ้ง
+   - ค่าที่ขึ้นต้นด้วย = + - @ ต้องไม่ถูก excel ตีความเป็นสูตร
+   - ต้องมีคอลัมน์ [ฟิลด์ส่วนตัวของฉัน] ด้วย
+   - หัวคอลัมน์เป็นภาษาไทย
+
+ห้ามแตะไฟล์อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-7"><span></span></label><span class="pid">P3-7</span><h3>งานที่ 7 — ค้นหา + ส่งออก CSV</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เพิ่ม 2 อย่างในไฟล์ src/app/admin/page.tsx เท่านั้น
+
+1. ช่องค้นหา กรองจากชื่อ อีเมล และรหัสลงทะเบียน แบบไม่สนตัวพิมพ์เล็ก-ใหญ่
+
+2. ปุ่มส่งออก CSV ที่ส่งออกเฉพาะแถวที่กำลังกรองอยู่ตอนนั้น
+   - ต้องใส่ BOM เพื่อให้ Excel อ่านภาษาไทยได้ ไม่กลายเป็นตัวต่างดาว
+   - เบอร์โทรต้องไม่ถูก Excel ตัดเลข 0 ตัวหน้าทิ้ง
+   - ค่าที่ขึ้นต้นด้วย = + - @ ต้องไม่ถูก Excel ตีความเป็นสูตร
+   - ต้องมีคอลัมน์ [ฟิลด์ส่วนตัวของฉัน] ด้วย
+   - หัวคอลัมน์เป็นภาษาไทย
+
+ห้ามแตะไฟล์อื่น</pre></div></article><article class="card" data-key="2-P3-8" data-find="p3-8 ขอข้อความ commit จบทุกงาน ก่อนสั่งงานถัดไป สรุปสิ่งที่เพิ่งทำเสร็จเป็นข้อความ commit ภาษาอังกฤษ 1 บรรทัด ไม่เกิน 72 ตัวอักษร
+แล้วบอกฉันว่ามีไฟล์อะไรบ้างที่เปลี่ยนไป
+
+ห้ามรัน git commit เอง ฉันจะรันเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-8"><span></span></label><span class="pid">P3-8</span><h3>ขอข้อความ commit</h3></header><p class="when"><span>ใช้ตอน</span>จบทุกงาน ก่อนสั่งงานถัดไป</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>สรุปสิ่งที่เพิ่งทำเสร็จเป็นข้อความ commit ภาษาอังกฤษ 1 บรรทัด ไม่เกิน 72 ตัวอักษร
+แล้วบอกฉันว่ามีไฟล์อะไรบ้างที่เปลี่ยนไป
+
+ห้ามรัน git commit เอง ฉันจะรันเอง</pre></div><dl class="notes"><div class="note"><dt>ทำไมห้ามให้มัน commit เอง</dt><dd>วันนี้เราต้องรู้ให้ได้ว่าจุดเซฟอยู่ตรงไหนบ้าง</dd></div></dl></article><article class="card" data-key="2-P3-9" data-find="p3-9 เมื่อ agent เดินผิดทางกลางงาน เห็นว่ามันเริ่มแก้ไฟล์ที่ไม่ได้สั่ง — กด esc ก่อน แล้วพิมพ์อันนี้ หยุดก่อน อย่าแก้อะไรเพิ่ม
+
+บอกฉันมาเป็นรายการว่า ตั้งแต่คำสั่งล่าสุด คุณแก้ไฟล์อะไรไปแล้วบ้าง และแก้อะไรในแต่ละไฟล์
+ไฟล์ไหนที่ไม่ได้อยู่ในขอบเขตที่ฉันสั่ง ให้บอกฉันด้วย
+
+ห้ามแก้อะไรเพิ่มจนกว่าฉันจะสั่ง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-2-P3-9"><span></span></label><span class="pid">P3-9</span><h3>เมื่อ agent เดินผิดทางกลางงาน</h3></header><p class="when"><span>ใช้ตอน</span>เห็นว่ามันเริ่มแก้ไฟล์ที่ไม่ได้สั่ง — กด Esc ก่อน แล้วพิมพ์อันนี้</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>หยุดก่อน อย่าแก้อะไรเพิ่ม
+
+บอกฉันมาเป็นรายการว่า ตั้งแต่คำสั่งล่าสุด คุณแก้ไฟล์อะไรไปแล้วบ้าง และแก้อะไรในแต่ละไฟล์
+ไฟล์ไหนที่ไม่ได้อยู่ในขอบเขตที่ฉันสั่ง ให้บอกฉันด้วย
+
+ห้ามแก้อะไรเพิ่มจนกว่าฉันจะสั่ง</pre></div><dl class="notes"><div class="note"><dt>แล้วทำต่อยังไง</dt><dd>ถ้ามันแตะไฟล์นอกขอบเขต → git restore &lt;ไฟล์นั้น&gt; แล้วสั่งใหม่ด้วยขอบเขตที่แคบลง</dd></div></dl></article></section><section class="panel" data-stage="3" hidden><h2 class="panel-h">ทดสอบ<span>ขั้นที่ 4</span></h2><article class="card" data-key="3-P4-1" data-find="p4-1 ให้ agent เขียน test โดยล็อกแหล่งข้อมูล เริ่มขั้นทดสอบ เขียน test จากไฟล์ requirements.md เท่านั้น ห้ามอ่านโค้ดที่เขียนไว้แล้ว
+ครอบคลุมกติกา r1 ถึง r5 ให้ครบทุกข้อ
+
+ถ้าสเปกข้อไหนกำกวมจนเขียน test ไม่ได้ ให้ถามฉัน อย่าเดาเอง
+ถ้าต้องติดตั้ง library เพิ่ม ให้บอกฉันก่อน อย่าเพิ่งติดตั้งเอง
+
+บอกฉันมาก่อนว่าจะเขียน test กี่ข้อ แต่ละข้อทดสอบกติกาข้อไหน แล้วรอฉันอนุมัติ"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-1"><span></span></label><span class="pid">P4-1</span><h3>ให้ agent เขียน test โดยล็อกแหล่งข้อมูล <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>เริ่มขั้นทดสอบ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เขียน test จากไฟล์ requirements.md เท่านั้น ห้ามอ่านโค้ดที่เขียนไว้แล้ว
+ครอบคลุมกติกา R1 ถึง R5 ให้ครบทุกข้อ
+
+ถ้าสเปกข้อไหนกำกวมจนเขียน test ไม่ได้ ให้ถามฉัน อย่าเดาเอง
+ถ้าต้องติดตั้ง library เพิ่ม ให้บอกฉันก่อน อย่าเพิ่งติดตั้งเอง
+
+บอกฉันมาก่อนว่าจะเขียน test กี่ข้อ แต่ละข้อทดสอบกติกาข้อไหน แล้วรอฉันอนุมัติ</pre></div><dl class="notes"><div class="note"><dt>กับดักที่ต้องเตือนตรง ๆ</dt><dd>test ที่ AI เขียนเองจากโค้ดของตัวเอง มักจะผ่านหมด</dd></div><div class="note"><dt>สัญญาณว่าผิดทาง</dt><dd>มันเริ่มเปิดไฟล์ src/lib/db.ts → หยุด แล้วย้ำว่า &quot;อ่านแค่ requirements.md&quot;</dd></div></dl></article><article class="card" data-key="3-P4-2" data-find="p4-2 ตรวจว่า test จับบั๊กได้จริงไหม หลังเขียน test เสร็จ และหลังแทรกบั๊กแล้ว ตอนนี้ในโค้ดมีบั๊กอยู่ 3 ตัวที่ฉันแทรกไว้เอง
+รัน test ทั้งหมด แล้วรายงานผลจริง ห้ามแก้โค้ดและห้ามแก้ test
+
+ถ้า test ผ่านหมดทั้งที่ยังมีบั๊กอยู่ ให้บอกฉันว่า test ข้อไหนควรจับได้แต่จับไม่ได้
+และอธิบายว่าทำไมมันถึงหลุด"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-2"><span></span></label><span class="pid">P4-2</span><h3>ตรวจว่า test จับบั๊กได้จริงไหม <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>หลังเขียน test เสร็จ และหลังแทรกบั๊กแล้ว</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตอนนี้ในโค้ดมีบั๊กอยู่ 3 ตัวที่ฉันแทรกไว้เอง
+รัน test ทั้งหมด แล้วรายงานผลจริง ห้ามแก้โค้ดและห้ามแก้ test
+
+ถ้า test ผ่านหมดทั้งที่ยังมีบั๊กอยู่ ให้บอกฉันว่า test ข้อไหนควรจับได้แต่จับไม่ได้
+และอธิบายว่าทำไมมันถึงหลุด</pre></div><dl class="notes"><div class="note"><dt>ประโยคที่ต้องพูดบนเวที</dt><dd>*ถ้า test ผ่านทั้งที่บั๊กยังอยู่ แปลว่า test ใช้ไม่ได้ ไม่ใช่โค้ดถูก*</dd></div></dl></article><article class="card" data-key="3-P4-3" data-find="p4-3 ตรวจสิทธิ์เข้าถึงฐานข้อมูลก่อนปิดงาน ขั้นทดสอบ และย้ำอีกครั้งก่อน deploy ตรวจสิทธิ์เข้าถึงตารางในฐานข้อมูลของโปรเจกต์นี้ให้ฉัน
+บอกมาว่าตอนนี้ใครอ่านหรือเขียนตารางไหนได้บ้าง แล้วเสนอกฎที่ปลอดภัยกว่า
+
+อย่าเพิ่งแก้อะไร และบอกฉันมาด้วยว่าจะตรวจด้วยตัวเองยังไง
+โดยไม่ต้องเชื่อคำพูดคุณ — ขอเป็นคำสั่งที่ฉันรันเองได้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-3"><span></span></label><span class="pid">P4-3</span><h3>ตรวจสิทธิ์เข้าถึงฐานข้อมูลก่อนปิดงาน <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ขั้นทดสอบ และย้ำอีกครั้งก่อน deploy</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจสิทธิ์เข้าถึงตารางในฐานข้อมูลของโปรเจกต์นี้ให้ฉัน
+บอกมาว่าตอนนี้ใครอ่านหรือเขียนตารางไหนได้บ้าง แล้วเสนอกฎที่ปลอดภัยกว่า
+
+อย่าเพิ่งแก้อะไร และบอกฉันมาด้วยว่าจะตรวจด้วยตัวเองยังไง
+โดยไม่ต้องเชื่อคำพูดคุณ — ขอเป็นคำสั่งที่ฉันรันเองได้</pre></div></article><article class="card" data-key="3-P4-4" data-find="p4-4 ตรวจว่าคีย์ลับหลุดไปฝั่งเบราว์เซอร์หรือยัง ก่อนปิดขั้นทดสอบ ค้นทั้งโปรเจกต์ให้ฉัน แล้วตอบเป็นรายการ
+
+1. มีไฟล์ไหนบ้างที่ขึ้นต้นด้วย &quot;use client&quot; แล้ว import supabaseserver หรืออ่าน
+   supabase_service_role_key / admin_password / admin_session_secret
+2. มีที่ไหนบ้างที่เขียนรหัสผ่านหรือคีย์ไว้ตรง ๆ ในโค้ด
+3. มีที่ไหนบ้างที่ console.log ชื่อ อีเมล หรือเบอร์โทรของผู้ลงทะเบียน
+
+รายงานอย่างเดียว ห้ามแก้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-4"><span></span></label><span class="pid">P4-4</span><h3>ตรวจว่าคีย์ลับหลุดไปฝั่งเบราว์เซอร์หรือยัง</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนปิดขั้นทดสอบ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ค้นทั้งโปรเจกต์ให้ฉัน แล้วตอบเป็นรายการ
+
+1. มีไฟล์ไหนบ้างที่ขึ้นต้นด้วย &quot;use client&quot; แล้ว import supabaseServer หรืออ่าน
+   SUPABASE_SERVICE_ROLE_KEY / ADMIN_PASSWORD / ADMIN_SESSION_SECRET
+2. มีที่ไหนบ้างที่เขียนรหัสผ่านหรือคีย์ไว้ตรง ๆ ในโค้ด
+3. มีที่ไหนบ้างที่ console.log ชื่อ อีเมล หรือเบอร์โทรของผู้ลงทะเบียน
+
+รายงานอย่างเดียว ห้ามแก้</pre></div><dl class="notes"><div class="note"><dt>ตรวจซ้ำด้วยตาตัวเอง</dt><dd>npm run build แล้วค้นคำว่า service_role ในโฟลเดอร์ .next/static/ — ต้องหาไม่เจอ</dd></div></dl></article><article class="card" data-key="3-P4-5" data-find="p4-5 ตรวจว่าฟิลด์ส่วนตัวอยู่ครบ 4 ที่ ก่อนปิดขั้นทดสอบ — ข้อที่คนลืมบ่อยที่สุด ฟิลด์ส่วนตัวของฉันคือ [ชื่อฟิลด์]
+ตรวจให้ฉันว่ามันมีครบทั้ง 4 ที่หรือยัง แล้วตอบเป็นตาราง
+
+1. db/schema.sql
+2. ฟอร์มลงทะเบียน (src/app/register/page.tsx)
+3. ตารางในหน้าแอดมิน (src/app/admin/page.tsx)
+4. ไฟล์ csv ที่ส่งออก
+
+ที่ไหนที่ยังขาด ให้บอกฉัน อย่าเพิ่งแก้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-5"><span></span></label><span class="pid">P4-5</span><h3>ตรวจว่าฟิลด์ส่วนตัวอยู่ครบ 4 ที่</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนปิดขั้นทดสอบ — ข้อที่คนลืมบ่อยที่สุด</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ฟิลด์ส่วนตัวของฉันคือ [ชื่อฟิลด์]
+ตรวจให้ฉันว่ามันมีครบทั้ง 4 ที่หรือยัง แล้วตอบเป็นตาราง
+
+1. db/schema.sql
+2. ฟอร์มลงทะเบียน (src/app/register/page.tsx)
+3. ตารางในหน้าแอดมิน (src/app/admin/page.tsx)
+4. ไฟล์ CSV ที่ส่งออก
+
+ที่ไหนที่ยังขาด ให้บอกฉัน อย่าเพิ่งแก้</pre></div></article><article class="card" data-key="3-P4-6" data-find="p4-6 สร้างเช็กลิสต์ทดสอบด้วยตาของตัวเอง อยากได้เช็กลิสต์ที่ตรงกับระบบของตัวเอง ไม่ใช่ของกลาง จากไฟล์ requirements.md สร้างเช็กลิสต์สำหรับทดสอบด้วยมือบนเบราว์เซอร์
+เขียนเป็นตาราง 3 คอลัมน์: ทำอะไร · คาดว่าจะเกิด · กติกาข้อไหน
+
+เงื่อนไข
+- ทุกข้อต้องทำได้จริงในเบราว์เซอร์ ไม่ต้องเปิด terminal
+- ต้องมีข้อที่ทดสอบฟิลด์ส่วนตัวของฉันด้วย
+- เรียงจากข้อที่ทำเร็วที่สุดไปช้าที่สุด
+
+เขียนเป็นไฟล์ test-checklist.md ที่รากโปรเจกต์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-3-P4-6"><span></span></label><span class="pid">P4-6</span><h3>สร้างเช็กลิสต์ทดสอบด้วยตาของตัวเอง</h3></header><p class="when"><span>ใช้ตอน</span>อยากได้เช็กลิสต์ที่ตรงกับระบบของตัวเอง ไม่ใช่ของกลาง</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>จากไฟล์ requirements.md สร้างเช็กลิสต์สำหรับทดสอบด้วยมือบนเบราว์เซอร์
+เขียนเป็นตาราง 3 คอลัมน์: ทำอะไร · คาดว่าจะเกิด · กติกาข้อไหน
+
+เงื่อนไข
+- ทุกข้อต้องทำได้จริงในเบราว์เซอร์ ไม่ต้องเปิด terminal
+- ต้องมีข้อที่ทดสอบฟิลด์ส่วนตัวของฉันด้วย
+- เรียงจากข้อที่ทำเร็วที่สุดไปช้าที่สุด
+
+เขียนเป็นไฟล์ test-checklist.md ที่รากโปรเจกต์</pre></div></article></section><section class="panel" data-stage="4" hidden><h2 class="panel-h">แก้บั๊ก<span>ขั้นที่ 5</span></h2><article class="card" data-key="4-P5-1" data-find="p5-1 สูตรส่ง error ให้ ai — 4 บรรทัด  ใช้บ่อยที่สุดของขั้นนี้ เจอ error อะไรก็ตาม ก่อนชูธงแดงให้ลองอันนี้ก่อนเสมอ ข้อความ error เต็ม ๆ:
+[วางทั้งก้อน อย่าตัด อย่าสรุปเอง]
+
+ฉันคาดว่าจะเกิด:
+[สิ่งที่ควรจะเป็น]
+
+สิ่งที่เกิดขึ้นจริง:
+[สิ่งที่เห็นบนหน้าจอ]
+
+ลองแก้ไปแล้ว:
+[ถ้ายังไม่ได้ลอง ให้เขียนว่า ยังไม่ได้ลองอะไรเลย]
+
+อย่าเพิ่งแก้โค้ด อธิบายสาเหตุให้ฉันฟังก่อน"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-1"><span></span></label><span class="pid">P5-1</span><h3>สูตรส่ง error ให้ AI — 4 บรรทัด  ใช้บ่อยที่สุดของขั้นนี้ <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>เจอ error อะไรก็ตาม ก่อนชูธงแดงให้ลองอันนี้ก่อนเสมอ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ข้อความ error เต็ม ๆ:
+[วางทั้งก้อน อย่าตัด อย่าสรุปเอง]
+
+ฉันคาดว่าจะเกิด:
+[สิ่งที่ควรจะเป็น]
+
+สิ่งที่เกิดขึ้นจริง:
+[สิ่งที่เห็นบนหน้าจอ]
+
+ลองแก้ไปแล้ว:
+[ถ้ายังไม่ได้ลอง ให้เขียนว่า ยังไม่ได้ลองอะไรเลย]
+
+อย่าเพิ่งแก้โค้ด อธิบายสาเหตุให้ฉันฟังก่อน</pre></div></article><article class="card" data-key="4-P5-2" data-find="p5-2 ให้อธิบายก่อน ห้ามแก้ ทุกครั้งที่ยังไม่เข้าใจว่าทำไมมันพัง อธิบายสาเหตุที่แท้จริงให้ฉันฟังก่อน ห้ามแก้โค้ด
+
+บอกมาว่า
+1. โค้ดบรรทัดไหนเป็นต้นเหตุ (ระบุชื่อไฟล์และเลขบรรทัด)
+2. ทำไมบรรทัดนั้นถึงทำให้เกิดอาการที่ฉันเห็น
+3. ถ้าแก้แล้วจะกระทบอะไรอีกบ้าง
+
+ถ้าคุณยังไม่แน่ใจ ให้บอกว่าไม่แน่ใจ แล้วบอกว่าต้องการข้อมูลอะไรเพิ่ม"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-2"><span></span></label><span class="pid">P5-2</span><h3>ให้อธิบายก่อน ห้ามแก้ <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ทุกครั้งที่ยังไม่เข้าใจว่าทำไมมันพัง</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>อธิบายสาเหตุที่แท้จริงให้ฉันฟังก่อน ห้ามแก้โค้ด
+
+บอกมาว่า
+1. โค้ดบรรทัดไหนเป็นต้นเหตุ (ระบุชื่อไฟล์และเลขบรรทัด)
+2. ทำไมบรรทัดนั้นถึงทำให้เกิดอาการที่ฉันเห็น
+3. ถ้าแก้แล้วจะกระทบอะไรอีกบ้าง
+
+ถ้าคุณยังไม่แน่ใจ ให้บอกว่าไม่แน่ใจ แล้วบอกว่าต้องการข้อมูลอะไรเพิ่ม</pre></div><dl class="notes"><div class="note"><dt>ประโยคที่ต้องพูดบนเวที</dt><dd>*ถ้ามันอธิบายไม่ได้ แปลว่ามันกำลังเดา — และเดาต่ออีกกี่รอบก็ไม่เจอ*</dd></div></dl></article><article class="card" data-key="4-P5-3" data-find="p5-3 แทรกบั๊ก b1 — ตรวจอีเมลซ้ำแบบ case-sensitive  ในไฟล์ src/lib/validate.ts ให้แก้ฟังก์ชัน normalizeemail
+ให้ตัดเฉพาะช่องว่างหัวท้าย ไม่ต้องแปลงเป็นตัวพิมพ์เล็ก
+
+แก้เฉพาะบรรทัดนั้นบรรทัดเดียว ห้ามแตะไฟล์อื่น และห้ามอธิบายอะไรเพิ่ม"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-3"><span></span></label><span class="pid">P5-3</span><h3>แทรกบั๊ก B1 — ตรวจอีเมลซ้ำแบบ case-sensitive</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ในไฟล์ src/lib/validate.ts ให้แก้ฟังก์ชัน normalizeEmail
+ให้ตัดเฉพาะช่องว่างหัวท้าย ไม่ต้องแปลงเป็นตัวพิมพ์เล็ก
+
+แก้เฉพาะบรรทัดนั้นบรรทัดเดียว ห้ามแตะไฟล์อื่น และห้ามอธิบายอะไรเพิ่ม</pre></div><dl class="notes"><div class="note"><dt>ตรวจว่าแทรกสำเร็จ</dt><dd>ลงทะเบียน test@rsu.ac.th แล้วลงซ้ำด้วย TEST@rsu.ac.th</dd></div><div class="note"><dt>สิ่งที่จะเกิดขึ้นจริง</dt><dd>ฐานข้อมูลจะดักไว้ด้วย unique index (event_id, lower(email)) —</dd></div></dl></article><article class="card" data-key="4-P5-4" data-find="p5-4 แทรกบั๊ก b2 — ที่นั่งเต็มแล้วยังลงได้อีกคน  ในไฟล์ src/lib/db.ts ฟังก์ชัน createregistration
+ตรงเงื่อนไขที่ตรวจจำนวนที่นั่ง ให้เปลี่ยนจาก &gt;= เป็น &gt;
+
+แก้เฉพาะตัวดำเนินการนั้นตัวเดียว ห้ามแตะที่อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-4"><span></span></label><span class="pid">P5-4</span><h3>แทรกบั๊ก B2 — ที่นั่งเต็มแล้วยังลงได้อีกคน</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ในไฟล์ src/lib/db.ts ฟังก์ชัน createRegistration
+ตรงเงื่อนไขที่ตรวจจำนวนที่นั่ง ให้เปลี่ยนจาก &gt;= เป็น &gt;
+
+แก้เฉพาะตัวดำเนินการนั้นตัวเดียว ห้ามแตะที่อื่น</pre></div><dl class="notes"><div class="note"><dt>ตรวจว่าแทรกสำเร็จ</dt><dd>ตั้ง capacity = 3 แล้วลงทะเบียน 4 คน</dd></div><div class="note"><dt>สิ่งที่จะเกิดขึ้นจริง</dt><dd>trigger enforce_capacity() จะดักคนที่ 4 ไว้</dd></div></dl></article><article class="card" data-key="4-P5-5" data-find="p5-5 แทรกบั๊ก b3 — หน้าแอดมินขาวทั้งหน้า  ในไฟล์ src/app/admin/page.tsx ในตารางผู้ลงทะเบียน
+ช่องที่แสดงฟิลด์ส่วนตัวของฉัน (ตอนนี้คือ row.shirt_size)
+ให้เปลี่ยนเป็น row.shirt_size.touppercase()
+
+แก้เฉพาะบรรทัดนั้น ห้ามใส่การตรวจค่าว่าง ห้ามแตะไฟล์อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-5"><span></span></label><span class="pid">P5-5</span><h3>แทรกบั๊ก B3 — หน้าแอดมินขาวทั้งหน้า</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ในไฟล์ src/app/admin/page.tsx ในตารางผู้ลงทะเบียน
+ช่องที่แสดงฟิลด์ส่วนตัวของฉัน (ตอนนี้คือ row.shirt_size)
+ให้เปลี่ยนเป็น row.shirt_size.toUpperCase()
+
+แก้เฉพาะบรรทัดนั้น ห้ามใส่การตรวจค่าว่าง ห้ามแตะไฟล์อื่น</pre></div><dl class="notes"><div class="note"><dt>ตรวจว่าแทรกสำเร็จ</dt><dd>ใส่แถวที่ฟิลด์ส่วนตัวเป็น null แล้วเปิด /admin</dd></div><div class="note"><dt>Console จะขึ้น</dt><dd>TypeError: Cannot read properties of null (reading &#x27;toUpperCase&#x27;)</dd></div><div class="note"><dt>ทางแก้ที่ถูก</dt><dd>{row.shirt_size?.toUpperCase() ?? &quot;-&quot;}</dd></div><div class="note"><dt>ประเด็นที่ต้องย้ำ</dt><dd>ค่าที่ &quot;ไม่บังคับกรอก&quot; ในฐานข้อมูล คือค่าที่จะเป็น null ได้เสมอ —</dd></div></dl></article><article class="card" data-key="4-P5-6" data-find="p5-6 เมื่อ ai แก้วนไม่จบ — กฎ 3 ครั้ง แก้เรื่องเดิม 3 รอบแล้วยังไม่หาย → หยุด อย่าแก้รอบที่ 4 เราแก้เรื่องนี้มา 3 รอบแล้วยังไม่หาย หยุดแก้ก่อน
+
+1. สรุปให้ฉันฟังว่า 3 รอบที่ผ่านมาคุณลองอะไรไปบ้าง และแต่ละรอบผลเป็นยังไง
+2. บอกมาว่าสมมติฐานไหนที่คุณคิดว่าถูก แต่จริง ๆ อาจจะผิด
+3. ถ้าจะหาสาเหตุที่แท้จริง ต้องการข้อมูลอะไรเพิ่มจากฉันบ้าง
+
+ห้ามแก้โค้ดในรอบนี้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-6"><span></span></label><span class="pid">P5-6</span><h3>เมื่อ AI แก้วนไม่จบ — กฎ 3 ครั้ง</h3></header><p class="when"><span>ใช้ตอน</span>แก้เรื่องเดิม 3 รอบแล้วยังไม่หาย → หยุด อย่าแก้รอบที่ 4</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เราแก้เรื่องนี้มา 3 รอบแล้วยังไม่หาย หยุดแก้ก่อน
+
+1. สรุปให้ฉันฟังว่า 3 รอบที่ผ่านมาคุณลองอะไรไปบ้าง และแต่ละรอบผลเป็นยังไง
+2. บอกมาว่าสมมติฐานไหนที่คุณคิดว่าถูก แต่จริง ๆ อาจจะผิด
+3. ถ้าจะหาสาเหตุที่แท้จริง ต้องการข้อมูลอะไรเพิ่มจากฉันบ้าง
+
+ห้ามแก้โค้ดในรอบนี้</pre></div><dl class="notes"><div class="note"><dt>ถ้ายังไม่ได้</dt><dd>ย้อน commit (P5-7) แล้วเริ่มใหม่ด้วยคำสั่งที่แคบกว่าเดิม</dd></div></dl></article><article class="card" data-key="4-P5-7" data-find="p5-7 ย้อนกลับ commit ล่าสุด ของเสียหายหนัก หรือไม่รู้แล้วว่าพังตรงไหน — อย่าพยายามแก้ต่อบนกองที่พังอยู่ แสดง git log --oneline ให้ฉันดู 10 รายการล่าสุด
+แล้วบอกว่าแต่ละ commit ทำอะไร
+
+อย่าเพิ่งรันคำสั่ง git ใด ๆ ที่เปลี่ยนโค้ด ฉันจะเลือกเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-7"><span></span></label><span class="pid">P5-7</span><h3>ย้อนกลับ commit ล่าสุด</h3></header><p class="when"><span>ใช้ตอน</span>ของเสียหายหนัก หรือไม่รู้แล้วว่าพังตรงไหน — อย่าพยายามแก้ต่อบนกองที่พังอยู่</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>แสดง git log --oneline ให้ฉันดู 10 รายการล่าสุด
+แล้วบอกว่าแต่ละ commit ทำอะไร
+
+อย่าเพิ่งรันคำสั่ง git ใด ๆ ที่เปลี่ยนโค้ด ฉันจะเลือกเอง</pre></div></article><article class="card" data-key="4-P5-8" data-find="p5-8 ตัดขอบเขตให้แคบลง เมื่อ agent เดินผิดทาง สั่งกว้าง ๆ แล้วมันไปแก้ผิดที่ เลิกใช้คำสั่งเดิม เริ่มใหม่ด้วยขอบเขตที่แคบลง
+
+งานรอบนี้: แก้เฉพาะไฟล์ [ชื่อไฟล์เต็ม]
+บรรทัดที่เกี่ยวข้อง: [เลขบรรทัด หรือชื่อฟังก์ชัน]
+สิ่งที่ต้องเปลี่ยน: [อธิบายผลลัพธ์ที่ต้องการ ไม่ใช่วิธีทำ]
+
+ห้ามแตะไฟล์อื่น ห้ามจัดรูปแบบโค้ดใหม่ ห้ามเปลี่ยนชื่อตัวแปรที่ไม่เกี่ยวข้อง
+ก่อนแก้ ให้บอกฉันก่อนว่าจะเปลี่ยนอะไรบ้าง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-4-P5-8"><span></span></label><span class="pid">P5-8</span><h3>ตัดขอบเขตให้แคบลง เมื่อ agent เดินผิดทาง</h3></header><p class="when"><span>ใช้ตอน</span>สั่งกว้าง ๆ แล้วมันไปแก้ผิดที่</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เลิกใช้คำสั่งเดิม เริ่มใหม่ด้วยขอบเขตที่แคบลง
+
+งานรอบนี้: แก้เฉพาะไฟล์ [ชื่อไฟล์เต็ม]
+บรรทัดที่เกี่ยวข้อง: [เลขบรรทัด หรือชื่อฟังก์ชัน]
+สิ่งที่ต้องเปลี่ยน: [อธิบายผลลัพธ์ที่ต้องการ ไม่ใช่วิธีทำ]
+
+ห้ามแตะไฟล์อื่น ห้ามจัดรูปแบบโค้ดใหม่ ห้ามเปลี่ยนชื่อตัวแปรที่ไม่เกี่ยวข้อง
+ก่อนแก้ ให้บอกฉันก่อนว่าจะเปลี่ยนอะไรบ้าง</pre></div></article></section><section class="panel" data-stage="5" hidden><h2 class="panel-h">Deploy<span>ขั้นที่ 6</span></h2><article class="card" data-key="5-P6-1" data-find="p6-1 ตรวจก่อน push  ทำก่อนเสมอ ก่อนสร้าง repository บน github ตรวจให้ฉันก่อน push ขึ้น github แล้วตอบเป็นรายการ
+
+1. ไฟล์ .env.local อยู่ใน .gitignore แล้วหรือยัง
+2. รัน git status แล้วมีไฟล์ไหนบ้างที่กำลังจะขึ้นไป — แสดงรายการทั้งหมดให้ฉันดู
+3. มีไฟล์ไหนในรายการนั้นที่มีคีย์ รหัสผ่าน หรือข้อมูลส่วนบุคคลอยู่ข้างในไหม
+4. มีข้อมูลผู้ลงทะเบียนจริงหลงอยู่ในโค้ดหรือไฟล์ตัวอย่างไหม
+
+ห้ามรัน git push เอง ฉันจะรันเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-5-P6-1"><span></span></label><span class="pid">P6-1</span><h3>ตรวจก่อน push  ทำก่อนเสมอ <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ก่อนสร้าง repository บน GitHub</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจให้ฉันก่อน push ขึ้น GitHub แล้วตอบเป็นรายการ
+
+1. ไฟล์ .env.local อยู่ใน .gitignore แล้วหรือยัง
+2. รัน git status แล้วมีไฟล์ไหนบ้างที่กำลังจะขึ้นไป — แสดงรายการทั้งหมดให้ฉันดู
+3. มีไฟล์ไหนในรายการนั้นที่มีคีย์ รหัสผ่าน หรือข้อมูลส่วนบุคคลอยู่ข้างในไหม
+4. มีข้อมูลผู้ลงทะเบียนจริงหลงอยู่ในโค้ดหรือไฟล์ตัวอย่างไหม
+
+ห้ามรัน git push เอง ฉันจะรันเอง</pre></div><dl class="notes"><div class="note"><dt>ถ้าเผลอ commit คีย์ไปแล้ว</dt><dd>ลบไฟล์แล้ว commit ใหม่ ไม่พอ — คีย์ยังอยู่ในประวัติทุกบรรทัด</dd></div></dl></article><article class="card" data-key="5-P6-2" data-find="p6-2 เตรียมตัวแปร environment ให้ครบ ก่อนกด deploy ที่ vercel อ่านไฟล์ .env.example แล้วบอกฉันเป็นตาราง
+
+1. มีตัวแปรกี่ตัว ชื่ออะไรบ้าง
+2. ตัวไหนเปิดเผยได้ ตัวไหนห้ามหลุด
+3. ตัวไหนที่ถ้าลืมใส่แล้ว build จะผ่านแต่เว็บจะพัง
+
+ห้ามแสดงค่าจริงของตัวแปรใด ๆ ในคำตอบ"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-5-P6-2"><span></span></label><span class="pid">P6-2</span><h3>เตรียมตัวแปร environment ให้ครบ</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนกด Deploy ที่ Vercel</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>อ่านไฟล์ .env.example แล้วบอกฉันเป็นตาราง
+
+1. มีตัวแปรกี่ตัว ชื่ออะไรบ้าง
+2. ตัวไหนเปิดเผยได้ ตัวไหนห้ามหลุด
+3. ตัวไหนที่ถ้าลืมใส่แล้ว build จะผ่านแต่เว็บจะพัง
+
+ห้ามแสดงค่าจริงของตัวแปรใด ๆ ในคำตอบ</pre></div><dl class="notes"><div class="note"><dt>ข้อที่ลืมกันทั้งห้องทุกรุ่น</dt><dd>ตั้งค่าตัวแปรใน dashboard แล้ว ต้องสั่ง Redeploy ใหม่</dd></div></dl></article><article class="card" data-key="5-P6-3" data-find="p6-3 build พังตอน deploy vercel ขึ้น build failed build บน vercel ไม่ผ่าน นี่คือ build log ทั้งก้อน
+
+[วาง build log ตั้งแต่บรรทัดแรกที่เป็นสีแดง ลงมาจนจบ]
+
+ฉันคาดว่าจะเกิด: build ผ่านและได้ url จริง
+สิ่งที่เกิดขึ้นจริง: build หยุดที่ขั้นตอนข้างบน
+
+อธิบายสาเหตุให้ฉันฟังก่อน ห้ามแก้โค้ด
+และบอกด้วยว่าทำไมตอนรันในเครื่องถึงไม่เจอปัญหานี้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-5-P6-3"><span></span></label><span class="pid">P6-3</span><h3>build พังตอน deploy</h3></header><p class="when"><span>ใช้ตอน</span>Vercel ขึ้น Build Failed</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>build บน Vercel ไม่ผ่าน นี่คือ build log ทั้งก้อน
+
+[วาง build log ตั้งแต่บรรทัดแรกที่เป็นสีแดง ลงมาจนจบ]
+
+ฉันคาดว่าจะเกิด: build ผ่านและได้ URL จริง
+สิ่งที่เกิดขึ้นจริง: build หยุดที่ขั้นตอนข้างบน
+
+อธิบายสาเหตุให้ฉันฟังก่อน ห้ามแก้โค้ด
+และบอกด้วยว่าทำไมตอนรันในเครื่องถึงไม่เจอปัญหานี้</pre></div></article><article class="card" data-key="5-P6-4" data-find="p6-4 deploy แล้วเว็บขาว build ผ่าน แต่เปิดเว็บจริงแล้วหน้าขาว deploy ผ่านแล้ว แต่เปิดเว็บจริงแล้วหน้าขาว
+
+console บนเว็บจริงขึ้นว่า:
+[วางบรรทัดสีแดงทั้งบรรทัด]
+
+แท็บ network: คำขอที่ชื่อ [ชื่อ] ได้สถานะ [เลข]
+ฉันคาดว่าจะเกิด: เห็นหน้าแรกพร้อมชื่องานและที่นั่งคงเหลือ
+สิ่งที่เกิดขึ้นจริง: หน้าขาว ไม่มีอะไรเลย
+
+อธิบายสาเหตุก่อน ห้ามแก้โค้ด"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-5-P6-4"><span></span></label><span class="pid">P6-4</span><h3>deploy แล้วเว็บขาว</h3></header><p class="when"><span>ใช้ตอน</span>build ผ่าน แต่เปิดเว็บจริงแล้วหน้าขาว</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>deploy ผ่านแล้ว แต่เปิดเว็บจริงแล้วหน้าขาว
+
+Console บนเว็บจริงขึ้นว่า:
+[วางบรรทัดสีแดงทั้งบรรทัด]
+
+แท็บ Network: คำขอที่ชื่อ [ชื่อ] ได้สถานะ [เลข]
+ฉันคาดว่าจะเกิด: เห็นหน้าแรกพร้อมชื่องานและที่นั่งคงเหลือ
+สิ่งที่เกิดขึ้นจริง: หน้าขาว ไม่มีอะไรเลย
+
+อธิบายสาเหตุก่อน ห้ามแก้โค้ด</pre></div><dl class="notes"><div class="note"><dt>ขั้นแรกเสมอ</dt><dd>เปิด DevTools บน เว็บจริง (ไม่ใช่ localhost) แล้วดูแท็บ Console กับ Network</dd></div></dl></article><article class="card" data-key="5-P6-5" data-find="p6-5 ตรวจเว็บจริงหลังขึ้น ได้ url จริงมาแล้ว — ทำก่อนแจก qr ให้เพื่อน ฉัน deploy ขึ้นไปแล้วที่ [url ของฉัน]
+สร้างเช็กลิสต์ให้ฉันไล่ทดสอบบนเว็บจริง ไม่ใช่ localhost
+
+ต้องครอบคลุม
+- กติกา r1 ถึง r5 ครบทุกข้อ
+- การเปิดจากมือถือ ไม่ใช่จากคอมเครื่องที่พัฒนา
+- การตรวจว่าตาราง registrations ยังอ่านจากภายนอกไม่ได้
+- การตรวจว่ารหัสผ่านแอดมินไม่หลุดใน view source
+
+เขียนเป็นรายการสั้น ๆ ที่ฉันไล่ติ๊กได้ ไม่เกิน 10 ข้อ"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-5-P6-5"><span></span></label><span class="pid">P6-5</span><h3>ตรวจเว็บจริงหลังขึ้น</h3></header><p class="when"><span>ใช้ตอน</span>ได้ URL จริงมาแล้ว — ทำก่อนแจก QR ให้เพื่อน</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ฉัน deploy ขึ้นไปแล้วที่ [URL ของฉัน]
+สร้างเช็กลิสต์ให้ฉันไล่ทดสอบบนเว็บจริง ไม่ใช่ localhost
+
+ต้องครอบคลุม
+- กติกา R1 ถึง R5 ครบทุกข้อ
+- การเปิดจากมือถือ ไม่ใช่จากคอมเครื่องที่พัฒนา
+- การตรวจว่าตาราง registrations ยังอ่านจากภายนอกไม่ได้
+- การตรวจว่ารหัสผ่านแอดมินไม่หลุดใน View Source
+
+เขียนเป็นรายการสั้น ๆ ที่ฉันไล่ติ๊กได้ ไม่เกิน 10 ข้อ</pre></div></article></section><section class="panel" data-stage="6" hidden><h2 class="panel-h">ปิดงาน<span>จริยธรรม และการบ้าน</span></h2><article class="card" data-key="6-P7-1" data-find="p7-1 ตรวจความปลอดภัยรอบสุดท้าย ก่อนแจก url ให้เพื่อนลงทะเบียน — ระบบนี้เก็บข้อมูลจริงของคนในห้อง ตรวจความปลอดภัยของโปรเจกต์นี้ให้ฉันรอบสุดท้าย ตอบเป็นตาราง 5 แถว
+
+1. ใครอ่านตาราง registrations ได้บ้างตอนนี้
+2. คีย์ลับมีโอกาสหลุดไปฝั่งเบราว์เซอร์ตรงไหนได้บ้าง
+3. หน้าแอดมินป้องกันที่ชั้นไหนบ้าง และถ้าข้ามชั้นแรกไปได้จะเจออะไรต่อ
+4. มีที่ไหนที่ log หรือแสดงข้อมูลส่วนบุคคลโดยไม่จำเป็น
+5. ถ้าคุณเป็นคนที่อยากขโมยรายชื่อในระบบนี้ คุณจะลองทางไหนก่อน
+
+รายงานอย่างเดียว ห้ามแก้อะไร ถ้าเจอช่องโหว่ให้เรียงตามความรุนแรง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-6-P7-1"><span></span></label><span class="pid">P7-1</span><h3>ตรวจความปลอดภัยรอบสุดท้าย <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>ก่อนแจก URL ให้เพื่อนลงทะเบียน — ระบบนี้เก็บข้อมูลจริงของคนในห้อง</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจความปลอดภัยของโปรเจกต์นี้ให้ฉันรอบสุดท้าย ตอบเป็นตาราง 5 แถว
+
+1. ใครอ่านตาราง registrations ได้บ้างตอนนี้
+2. คีย์ลับมีโอกาสหลุดไปฝั่งเบราว์เซอร์ตรงไหนได้บ้าง
+3. หน้าแอดมินป้องกันที่ชั้นไหนบ้าง และถ้าข้ามชั้นแรกไปได้จะเจออะไรต่อ
+4. มีที่ไหนที่ log หรือแสดงข้อมูลส่วนบุคคลโดยไม่จำเป็น
+5. ถ้าคุณเป็นคนที่อยากขโมยรายชื่อในระบบนี้ คุณจะลองทางไหนก่อน
+
+รายงานอย่างเดียว ห้ามแก้อะไร ถ้าเจอช่องโหว่ให้เรียงตามความรุนแรง</pre></div></article><article class="card" data-key="6-P7-2" data-find="p7-2 ตรวจ pdpa ก่อนปิดวัน — ระบบนี้เก็บ ชื่อ · อีเมล · เบอร์โทร · คณะ = ข้อมูลส่วนบุคคลเต็มรูปแบบ ตรวจว่าระบบของฉันทำครบ 4 ข้อนี้หรือยัง ตอบเป็นตาราง ทำแล้ว/ยังไม่ทำ พร้อมบอกว่าอยู่ไฟล์ไหน
+
+1. แจ้งวัตถุประสงค์ — บอกชัดว่าเก็บไปทำอะไร เก็บนานแค่ไหน ใครเห็นได้บ้าง
+2. มีช่องให้ยินยอม — checkbox ที่ผู้ใช้ต้องติ๊กเอง ห้ามติ๊กไว้ล่วงหน้า
+3. ลบข้อมูลได้ — มีช่องทางให้เจ้าของข้อมูลขอลบ และเราลบได้จริง
+4. เก็บเท่าที่จำเป็น — ไม่มีฟิลด์ไหนที่ขอมาแต่ไม่ได้ใช้
+
+ข้อไหนที่ยังขาด ให้บอกว่าต้องเพิ่มอะไร แต่ยังไม่ต้องแก้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-6-P7-2"><span></span></label><span class="pid">P7-2</span><h3>ตรวจ PDPA</h3></header><p class="when"><span>ใช้ตอน</span>ก่อนปิดวัน — ระบบนี้เก็บ ชื่อ · อีเมล · เบอร์โทร · คณะ = ข้อมูลส่วนบุคคลเต็มรูปแบบ</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ตรวจว่าระบบของฉันทำครบ 4 ข้อนี้หรือยัง ตอบเป็นตาราง ทำแล้ว/ยังไม่ทำ พร้อมบอกว่าอยู่ไฟล์ไหน
+
+1. แจ้งวัตถุประสงค์ — บอกชัดว่าเก็บไปทำอะไร เก็บนานแค่ไหน ใครเห็นได้บ้าง
+2. มีช่องให้ยินยอม — checkbox ที่ผู้ใช้ต้องติ๊กเอง ห้ามติ๊กไว้ล่วงหน้า
+3. ลบข้อมูลได้ — มีช่องทางให้เจ้าของข้อมูลขอลบ และเราลบได้จริง
+4. เก็บเท่าที่จำเป็น — ไม่มีฟิลด์ไหนที่ขอมาแต่ไม่ได้ใช้
+
+ข้อไหนที่ยังขาด ให้บอกว่าต้องเพิ่มอะไร แต่ยังไม่ต้องแก้</pre></div><dl class="notes"><div class="note"><dt>เรื่องที่ต้องตกลงกันก่อนจบวัน</dt><dd>ข้อมูลเพื่อนในห้องที่อยู่ในระบบของแต่ละคน</dd></div></dl></article><article class="card" data-key="6-P7-3" data-find="p7-3 เขียน readme ของ repo ตัวเอง การบ้าน — repo ที่ไม่มี readme คือ repo ที่เอาไปใส่ portfolio ไม่ได้ เขียนไฟล์ readme.md สำหรับ repo นี้ ให้คนที่ไม่เคยเห็นโปรเจกต์นี้มาก่อนอ่านรู้เรื่อง
+
+ต้องมี
+- ระบบนี้ทำอะไรได้ (ตาราง 3 หน้า)
+- ใช้ stack อะไรบ้าง
+- วิธีรันในเครื่องตัวเอง ตั้งแต่ clone จนเปิดเบราว์เซอร์ได้ (คำสั่งจริงที่คัดลอกไปรันได้)
+- ต้องตั้งตัวแปร environment อะไรบ้าง (ชื่อเท่านั้น ห้ามใส่ค่าจริง)
+- ลำดับการรันไฟล์ sql
+- กติกา r1-r5 ที่ระบบนี้ต้องทำได้
+- ข้อมูลส่วนบุคคลถูกเก็บนานแค่ไหน และขอลบได้ที่ไหน
+
+เขียนเป็นภาษาไทย ยกเว้นชื่อคำสั่งและชื่อไฟล์
+ห้ามใส่ url จริงของฐานข้อมูลหรือคีย์ใด ๆ"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-6-P7-3"><span></span></label><span class="pid">P7-3</span><h3>เขียน README ของ repo ตัวเอง</h3></header><p class="when"><span>ใช้ตอน</span>การบ้าน — repo ที่ไม่มี README คือ repo ที่เอาไปใส่ portfolio ไม่ได้</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>เขียนไฟล์ README.md สำหรับ repo นี้ ให้คนที่ไม่เคยเห็นโปรเจกต์นี้มาก่อนอ่านรู้เรื่อง
+
+ต้องมี
+- ระบบนี้ทำอะไรได้ (ตาราง 3 หน้า)
+- ใช้ stack อะไรบ้าง
+- วิธีรันในเครื่องตัวเอง ตั้งแต่ clone จนเปิดเบราว์เซอร์ได้ (คำสั่งจริงที่คัดลอกไปรันได้)
+- ต้องตั้งตัวแปร environment อะไรบ้าง (ชื่อเท่านั้น ห้ามใส่ค่าจริง)
+- ลำดับการรันไฟล์ SQL
+- กติกา R1-R5 ที่ระบบนี้ต้องทำได้
+- ข้อมูลส่วนบุคคลถูกเก็บนานแค่ไหน และขอลบได้ที่ไหน
+
+เขียนเป็นภาษาไทย ยกเว้นชื่อคำสั่งและชื่อไฟล์
+ห้ามใส่ URL จริงของฐานข้อมูลหรือคีย์ใด ๆ</pre></div></article><article class="card" data-key="6-P7-4" data-find="p7-4 ทำ 6 ขั้นนี้ซ้ำกับโปรเจกต์ของตัวเอง  ของที่เอากลับบ้านจริง ๆ หลังจบอบรม — นี่คือ prompt ที่ทำให้วันนี้ไม่จบแค่วันนี้ ฉันเพิ่งทำระบบลงทะเบียนกิจกรรมเสร็จ ด้วยกระบวนการ 6 ขั้น
+วิเคราะห์ → ออกแบบ → เขียนโปรแกรม → ทดสอบ → แก้บั๊ก → deploy
+
+ตอนนี้ฉันอยากทำ [ชื่อระบบใหม่ของฉัน] ด้วยกระบวนการเดียวกัน
+
+เริ่มจากขั้นที่ 1 ก่อน อย่าเพิ่งเขียนโค้ด
+ถามฉัน 5 คำถามที่จำเป็นที่สุด ทีละคำถาม
+แล้วสรุปเป็นไฟล์ requirements.md ที่มี user story และกติกาที่ทดสอบได้"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-6-P7-4"><span></span></label><span class="pid">P7-4</span><h3>ทำ 6 ขั้นนี้ซ้ำกับโปรเจกต์ของตัวเอง  ของที่เอากลับบ้านจริง ๆ <em>★</em></h3></header><p class="when"><span>ใช้ตอน</span>หลังจบอบรม — นี่คือ prompt ที่ทำให้วันนี้ไม่จบแค่วันนี้</p><div class="term"><button class="copy" type="button">คัดลอก</button><pre>ฉันเพิ่งทำระบบลงทะเบียนกิจกรรมเสร็จ ด้วยกระบวนการ 6 ขั้น
+วิเคราะห์ → ออกแบบ → เขียนโปรแกรม → ทดสอบ → แก้บั๊ก → deploy
+
+ตอนนี้ฉันอยากทำ [ชื่อระบบใหม่ของฉัน] ด้วยกระบวนการเดียวกัน
+
+เริ่มจากขั้นที่ 1 ก่อน อย่าเพิ่งเขียนโค้ด
+ถามฉัน 5 คำถามที่จำเป็นที่สุด ทีละคำถาม
+แล้วสรุปเป็นไฟล์ requirements.md ที่มี user story และกติกาที่ทดสอบได้</pre></div></article><article class="card" data-key="6-P7-5" data-find="p7-5 การบ้าน 4 ข้อ  1  ทำงานที่ 7 ให้ครบ — เพิ่มช่องค้นหาและปุ่มส่งออก csv ในหน้าแอดมิน
+2  เขียน test ให้ครบ r1-r5 แล้วลองแก้โค้ดให้พังทีละจุด ดูว่า test จับได้ครบไหม
+3  เพิ่มฟีเจอร์ของตัวเอง 1 อย่าง
+   อีเมลยืนยัน · qr ประจำตัวผู้ลงทะเบียน · หน้าสรุปยอดแยกตามคณะ
+4  เขียน readme ให้ repo ตัวเอง (ใช้ p7-3)"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-6-P7-5"><span></span></label><span class="pid">P7-5</span><h3>การบ้าน 4 ข้อ</h3></header><div class="term"><button class="copy" type="button">คัดลอก</button><pre>1  ทำงานที่ 7 ให้ครบ — เพิ่มช่องค้นหาและปุ่มส่งออก CSV ในหน้าแอดมิน
+2  เขียน test ให้ครบ R1-R5 แล้วลองแก้โค้ดให้พังทีละจุด ดูว่า test จับได้ครบไหม
+3  เพิ่มฟีเจอร์ของตัวเอง 1 อย่าง
+   อีเมลยืนยัน · QR ประจำตัวผู้ลงทะเบียน · หน้าสรุปยอดแยกตามคณะ
+4  เขียน README ให้ repo ตัวเอง (ใช้ P7-3)</pre></div></article></section><section class="panel" data-stage="7" hidden><h2 class="panel-h">ห้ามใช้<span>prompt ที่ได้ผลตรงข้าม</span></h2><article class="card" data-key="7-คู่ที่ 1" data-find="คู่ที่ 1 เริ่มโปรเจกต์  ทำเว็บลงทะเบียนให้หน่อย ฉันอยากทำระบบลงทะเบียนกิจกรรมสำหรับงาน [ชื่องานของฉัน]
+อย่าเพิ่งเขียนโค้ด ถามฉัน 5 คำถามที่จำเป็นที่สุดก่อน ทีละคำถาม
+เมื่อได้คำตอบครบแล้วค่อยสรุปเป็นสเปกลงไฟล์ requirements.md"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 1"><span></span></label><span class="pid">คู่ที่ 1</span><h3>เริ่มโปรเจกต์</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ทำเว็บลงทะเบียนให้หน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ฉันอยากทำระบบลงทะเบียนกิจกรรมสำหรับงาน [ชื่องานของฉัน]
+อย่าเพิ่งเขียนโค้ด ถามฉัน 5 คำถามที่จำเป็นที่สุดก่อน ทีละคำถาม
+เมื่อได้คำตอบครบแล้วค่อยสรุปเป็นสเปกลงไฟล์ requirements.md</pre></div></article><article class="card" data-key="7-คู่ที่ 2" data-find="คู่ที่ 2 ขอบเขตของงาน  แก้หน้าลงทะเบียนหน่อย แก้ไฟล์ src/app/register/page.tsx เท่านั้น
+เปลี่ยนข้อความ error ตอนเบอร์โทรไม่ครบ 10 หลัก ให้บอกด้วยว่ากรอกมากี่หลัก
+แตะได้แค่ไฟล์นี้ ห้ามแตะไฟล์อื่น"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 2"><span></span></label><span class="pid">คู่ที่ 2</span><h3>ขอบเขตของงาน</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>แก้หน้าลงทะเบียนหน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>แก้ไฟล์ src/app/register/page.tsx เท่านั้น
+เปลี่ยนข้อความ error ตอนเบอร์โทรไม่ครบ 10 หลัก ให้บอกด้วยว่ากรอกมากี่หลัก
+แตะได้แค่ไฟล์นี้ ห้ามแตะไฟล์อื่น</pre></div></article><article class="card" data-key="7-คู่ที่ 3" data-find="คู่ที่ 3 ตอนเจอ error  มัน error แก้ให้หน่อย ข้อความ error เต็ม ๆ: [วางทั้งก้อน]
+ฉันคาดว่าจะเกิด: [สิ่งที่ควรเป็น]
+สิ่งที่เกิดขึ้นจริง: [สิ่งที่เห็น]
+ลองแก้ไปแล้ว: [หรือ ยังไม่ได้ลองอะไรเลย]
+อย่าเพิ่งแก้โค้ด อธิบายสาเหตุให้ฉันฟังก่อน"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 3"><span></span></label><span class="pid">คู่ที่ 3</span><h3>ตอนเจอ error</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>มัน error แก้ให้หน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ข้อความ error เต็ม ๆ: [วางทั้งก้อน]
+ฉันคาดว่าจะเกิด: [สิ่งที่ควรเป็น]
+สิ่งที่เกิดขึ้นจริง: [สิ่งที่เห็น]
+ลองแก้ไปแล้ว: [หรือ ยังไม่ได้ลองอะไรเลย]
+อย่าเพิ่งแก้โค้ด อธิบายสาเหตุให้ฉันฟังก่อน</pre></div></article><article class="card" data-key="7-คู่ที่ 4" data-find="คู่ที่ 4 ทำหลายอย่างพร้อมกัน  ทำระบบลงทะเบียนให้ครบเลย มีหน้าแรก หน้าฟอร์ม หน้าแอดมิน
+เชื่อมฐานข้อมูล ตรวจข้อมูล ออกรหัส ส่งออก csv ด้วย รอบนี้ทำงานเดียว: สร้าง src/app/api/register/route.ts รับ post
+บันทึกผู้ลงทะเบียนลงฐานข้อมูล และออกรหัสลงทะเบียนที่ไม่ซ้ำ
+แตะได้แค่ไฟล์นี้ เสร็จแล้วรัน npx tsc --noemit แล้วรายงานผลจริง
+แล้วเสนอข้อความ commit มาให้ฉัน"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 4"><span></span></label><span class="pid">คู่ที่ 4</span><h3>ทำหลายอย่างพร้อมกัน</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ทำระบบลงทะเบียนให้ครบเลย มีหน้าแรก หน้าฟอร์ม หน้าแอดมิน
+เชื่อมฐานข้อมูล ตรวจข้อมูล ออกรหัส ส่งออก CSV ด้วย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>รอบนี้ทำงานเดียว: สร้าง src/app/api/register/route.ts รับ POST
+บันทึกผู้ลงทะเบียนลงฐานข้อมูล และออกรหัสลงทะเบียนที่ไม่ซ้ำ
+แตะได้แค่ไฟล์นี้ เสร็จแล้วรัน npx tsc --noEmit แล้วรายงานผลจริง
+แล้วเสนอข้อความ commit มาให้ฉัน</pre></div></article><article class="card" data-key="7-คู่ที่ 5" data-find="คู่ที่ 5 ปล่อยให้เลือก stack เอง  ใช้อะไรดีที่สุดสำหรับงานนี้ เลือกให้หน่อย โปรเจกต์นี้ใช้ next.js 16 (app router) + supabase เท่านั้น deploy บน vercel
+ห้ามเปลี่ยน framework ห้ามเพิ่ม library ใหม่โดยไม่ถามฉันก่อน
+ถ้าคิดว่ามีทางที่ดีกว่า ให้บอกฉัน แต่อย่าเปลี่ยนเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 5"><span></span></label><span class="pid">คู่ที่ 5</span><h3>ปล่อยให้เลือก stack เอง</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ใช้อะไรดีที่สุดสำหรับงานนี้ เลือกให้หน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>โปรเจกต์นี้ใช้ Next.js 16 (App Router) + Supabase เท่านั้น deploy บน Vercel
+ห้ามเปลี่ยน framework ห้ามเพิ่ม library ใหม่โดยไม่ถามฉันก่อน
+ถ้าคิดว่ามีทางที่ดีกว่า ให้บอกฉัน แต่อย่าเปลี่ยนเอง</pre></div></article><article class="card" data-key="7-คู่ที่ 6" data-find="คู่ที่ 6 เรื่องความปลอดภัย  มัน error ว่าไม่มีสิทธิ์อ่านตาราง ทำให้มันรันผ่านหน่อย ตอนนี้ติดสิทธิ์อ่านตาราง registrations
+อธิบายให้ฉันฟังก่อนว่าติดเพราะอะไร และมีทางแก้กี่ทาง
+ทางไหนที่ไม่ต้องเปิดสิทธิ์ให้คนนอกอ่านตารางนี้บ้าง
+ห้ามแก้ policy เอง ห้ามปิด rls"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 6"><span></span></label><span class="pid">คู่ที่ 6</span><h3>เรื่องความปลอดภัย</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>มัน error ว่าไม่มีสิทธิ์อ่านตาราง ทำให้มันรันผ่านหน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>ตอนนี้ติดสิทธิ์อ่านตาราง registrations
+อธิบายให้ฉันฟังก่อนว่าติดเพราะอะไร และมีทางแก้กี่ทาง
+ทางไหนที่ไม่ต้องเปิดสิทธิ์ให้คนนอกอ่านตารางนี้บ้าง
+ห้ามแก้ policy เอง ห้ามปิด RLS</pre></div></article><article class="card" data-key="7-คู่ที่ 7" data-find="คู่ที่ 7 ตอนให้ ai เขียน test  เขียน test ให้โปรเจกต์นี้หน่อย เขียน test จากไฟล์ requirements.md เท่านั้น ห้ามอ่านโค้ดที่เขียนไว้แล้ว
+ครอบคลุมกติกา r1 ถึง r5 ให้ครบทุกข้อ
+ถ้าสเปกข้อไหนกำกวมจนเขียน test ไม่ได้ ให้ถามฉัน อย่าเดาเอง"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 7"><span></span></label><span class="pid">คู่ที่ 7</span><h3>ตอนให้ AI เขียน test</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>เขียน test ให้โปรเจกต์นี้หน่อย</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>เขียน test จากไฟล์ requirements.md เท่านั้น ห้ามอ่านโค้ดที่เขียนไว้แล้ว
+ครอบคลุมกติกา R1 ถึง R5 ให้ครบทุกข้อ
+ถ้าสเปกข้อไหนกำกวมจนเขียน test ไม่ได้ ให้ถามฉัน อย่าเดาเอง</pre></div></article><article class="card" data-key="7-คู่ที่ 8" data-find="คู่ที่ 8 ตอนมันบอกว่าเสร็จแล้ว  (ai ตอบ) เรียบร้อยครับ ระบบทำงานได้แล้ว คุณรันคำสั่งอะไรไปบ้าง แสดงผลลัพธ์จริงที่ได้ให้ฉันดู
+- npx tsc --noemit ผลเป็นยังไง
+- npm run lint ผลเป็นยังไง
+- npm run build ผ่านไหม
+
+ถ้ายังไม่ได้รัน ให้บอกตรง ๆ ว่ายังไม่ได้รัน อย่าเดาผลลัพธ์"><header class="card-head"><label class="tick"><input type="checkbox" id="tick-7-คู่ที่ 8"><span></span></label><span class="pid">คู่ที่ 8</span><h3>ตอนมันบอกว่าเสร็จแล้ว</h3></header><div class="term is-bad"><span class="tone">✕ อย่าสั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>(AI ตอบ) เรียบร้อยครับ ระบบทำงานได้แล้ว</pre></div><div class="term is-good"><span class="tone">✓ สั่งแบบนี้</span><button class="copy" type="button">คัดลอก</button><pre>คุณรันคำสั่งอะไรไปบ้าง แสดงผลลัพธ์จริงที่ได้ให้ฉันดู
+- npx tsc --noEmit ผลเป็นยังไง
+- npm run lint ผลเป็นยังไง
+- npm run build ผ่านไหม
+
+ถ้ายังไม่ได้รัน ให้บอกตรง ๆ ว่ายังไม่ได้รัน อย่าเดาผลลัพธ์</pre></div></article></section>
+    <p class="empty" hidden>ไม่พบ prompt ที่ตรงกับคำค้น</p>
+  </div>
+</main>
+
+<footer class="foot">
+  ใช้ได้ทั้งกับ <b>Antigravity CLI (agy)</b> และเว็บแชท — ถ้าใช้เว็บแชท ต้องแปะเนื้อไฟล์
+  <code>AGENTS.md</code> กับ <code>requirements.md</code> ไปพร้อมกับ prompt ทุกครั้ง
+  เพราะเว็บแชทเปิดโฟลเดอร์ของเราไม่ได้
+</footer>
+
+<script>
+(function(){
+  var rail = document.querySelectorAll('.rail-btn');
+  var panels = document.querySelectorAll('.panel');
+  var q = document.getElementById('q');
+  var empty = document.querySelector('.empty');
+  var doneEl = document.getElementById('done');
+
+  function show(i){
+    rail.forEach(function(b,k){ b.setAttribute('aria-current', k===i ? 'true':'false'); });
+    panels.forEach(function(p,k){ p.hidden = k!==i; });
+    if(q.value) filter();
+  }
+  rail.forEach(function(b,i){ b.addEventListener('click', function(){ q.value=''; filter(); show(i); }); });
+  show(0);
+
+  function filter(){
+    var s = q.value.trim().toLowerCase();
+    var hits = 0;
+    panels.forEach(function(p){
+      var any = false;
+      p.querySelectorAll('.card').forEach(function(c){
+        var m = !s || c.dataset.find.indexOf(s) > -1;
+        c.hidden = !m; if(m){ any = true; hits++; }
+      });
+      if(s) p.hidden = !any;
+    });
+    if(!s){ var cur=0; rail.forEach(function(b,k){ if(b.getAttribute('aria-current')==='true') cur=k; }); show(cur); }
+    empty.hidden = !(s && hits === 0);
+  }
+  q.addEventListener('input', filter);
+
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = btn.parentNode.querySelector('pre').textContent;
+      var done = function(){
+        btn.textContent = 'คัดลอกแล้ว'; btn.classList.add('ok');
+        setTimeout(function(){ btn.textContent='คัดลอก'; btn.classList.remove('ok'); }, 1400);
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else { fallback(); }
+      function fallback(){
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); done(); }catch(e){}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  var KEY = 'rsu-prompts-done';
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch(e){ state = {}; }
+  function tally(){
+    var n = 0; for(var k in state){ if(state[k]) n++; }
+    doneEl.textContent = n;
+  }
+  document.querySelectorAll('.card').forEach(function(card){
+    var box = card.querySelector('.tick input');
+    var key = card.dataset.key;
+    if(state[key]){ box.checked = true; card.classList.add('is-done'); }
+    box.addEventListener('change', function(){
+      state[key] = box.checked;
+      card.classList.toggle('is-done', box.checked);
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+      tally();
+    });
+  });
+  tally();
+})();
+</script>
+</body>
+</html>
