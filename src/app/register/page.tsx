@@ -1,128 +1,93 @@
 "use client";
 
-import { useState, Suspense } from "react";
+// หน้าลงทะเบียน — ส่งข้อมูลไปที่ /api/register ไม่แตะฐานข้อมูลเอง
+// การตรวจในหน้านี้คือ "ความสะดวก" ตัวจริงที่ตัดสินคือเซิร์ฟเวอร์กับฐานข้อมูล
+
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { isValidEmail, isValidPhone } from "@/lib/validate";
+
+type Status = "idle" | "loading" | "success" | "error";
+
+const SHIRT_SIZES = ["S", "M", "L", "XL", "XXL"];
 
 function RegisterForm() {
   const searchParams = useSearchParams();
-  const eventId = searchParams.get("eventId");
+  const eventId = searchParams.get("eventId") ?? "";
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     phone: "",
     faculty: "",
-    shirtSize: "M", // Custom field
+    shirtSize: "M", // ★ ฟิลด์ส่วนตัว
   });
-
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [consent, setConsent] = useState(false);
+  const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketCode, setTicketCode] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const generateTicketCode = () => {
-    return 'RSU-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const fail = (message: string) => {
+    setErrorMessage(message);
+    setStatus("error");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eventId) {
-      setErrorMessage("ไม่พบข้อมูลกิจกรรม");
-      setStatus("error");
-      return;
-    }
+    if (status === "loading") return; // AC-5.3 กดรัว ๆ ต้องได้แถวเดียว
 
-    // Validation
-    if (!formData.fullName || !formData.email || !formData.phone) {
-      setErrorMessage("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
-      setStatus("error");
-      return;
-    }
+    if (!eventId) return fail("ไม่พบข้อมูลกิจกรรม");
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setErrorMessage("รูปแบบอีเมลไม่ถูกต้อง");
-      setStatus("error");
-      return;
+    // R3 — ด่านแรกในเบราว์เซอร์ (เซิร์ฟเวอร์ตรวจซ้ำด้วยเกณฑ์เดียวกัน)
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      return fail("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
     }
-
-    if (!/^\d{10}$/.test(formData.phone)) {
-      setErrorMessage("เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก");
-      setStatus("error");
-      return;
-    }
+    if (!isValidEmail(formData.email)) return fail("รูปแบบอีเมลไม่ถูกต้อง");
+    if (!isValidPhone(formData.phone)) return fail("เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก");
+    if (!consent) return fail("กรุณายอมรับเงื่อนไขการเก็บข้อมูลส่วนบุคคลก่อนลงทะเบียน");
 
     setStatus("loading");
-    const code = generateTicketCode();
-
     try {
-      // Check capacity first
-      const { data: event } = await supabase
-        .from("events")
-        .select("capacity")
-        .eq("id", eventId)
-        .single();
-        
-      if (event) {
-        const { count } = await supabase
-          .from("registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("event_id", eventId);
-          
-        if (count !== null && count >= event.capacity) {
-          setErrorMessage("ขออภัย ที่นั่งเต็มแล้ว");
-          setStatus("error");
-          return;
-        }
-      }
-
-      // Insert registration
-      const { error } = await supabase.from("registrations").insert({
-        event_id: eventId,
-        full_name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        faculty: formData.faculty,
-        shirt_size: formData.shirtSize, // Custom field
-        ticket_code: code,
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, eventId, consent }),
       });
+      const result = (await response.json()) as {
+        ok: boolean;
+        ticketCode?: string;
+        message?: string;
+      };
 
-      if (error) {
-        if (error.code === '23505') { // Unique violation
-          setErrorMessage("อีเมลนี้ได้ลงทะเบียนไปแล้ว");
-        } else {
-          setErrorMessage("เกิดข้อผิดพลาดในการลงทะเบียน: " + error.message);
-        }
-        setStatus("error");
-      } else {
-        setTicketCode(code);
-        setStatus("success");
+      if (!response.ok || !result.ok) {
+        return fail(result.message ?? "เกิดข้อผิดพลาดในการลงทะเบียน");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || "เกิดข้อผิดพลาด");
-      setStatus("error");
+
+      setTicketCode(result.ticketCode ?? "");
+      setStatus("success");
+    } catch {
+      fail("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     }
   };
 
   if (status === "success") {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-        <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">ลงทะเบียนสำเร็จ!</h2>
-        <p className="text-gray-600 mb-6">กรุณาบันทึกรหัสลงทะเบียนด้านล่างเพื่อใช้ในการเช็คอินหน้างาน</p>
-        
+        <h2 className="text-2xl font-bold mb-2">ลงทะเบียนสำเร็จ</h2>
+        <p className="text-gray-600 mb-6">
+          กรุณาบันทึกรหัสลงทะเบียนด้านล่าง เพื่อใช้ยืนยันตอนเช็คอินหน้างาน
+        </p>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8 inline-block">
           <div className="text-sm text-gray-500 mb-1">รหัสลงทะเบียนของคุณ</div>
           <div className="text-3xl font-mono font-bold text-rsu-primary">{ticketCode}</div>
         </div>
-        
         <div>
           <Link href="/" className="text-rsu-primary hover:underline">
             กลับหน้าหลัก
@@ -134,83 +99,121 @@ function RegisterForm() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">แบบฟอร์มลงทะเบียน</h2>
-      
+      <h2 className="text-2xl font-bold mb-6 text-center">แบบฟอร์มลงทะเบียน</h2>
+
       {status === "error" && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm" role="alert">
           {errorMessage}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
-          <input 
-            type="text" 
+          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+            ชื่อ-นามสกุล <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="fullName"
+            type="text"
             name="fullName"
             value={formData.fullName}
             onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary" 
-            required 
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
+            required
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล <span className="text-red-500">*</span></label>
-            <input 
-              type="email" 
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              อีเมล <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="email"
+              type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary" 
-              required 
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ (10 หลัก) <span className="text-red-500">*</span></label>
-            <input 
-              type="tel" 
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              เบอร์โทรศัพท์ (10 หลัก) <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="phone"
+              type="tel"
               name="phone"
+              inputMode="numeric"
               pattern="[0-9]{10}"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary" 
-              required 
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
+              required
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">คณะ/หน่วยงาน (ถ้ามี)</label>
-          <input 
-            type="text" 
+          <label htmlFor="faculty" className="block text-sm font-medium text-gray-700 mb-1">
+            คณะ/หน่วยงาน (ถ้ามี)
+          </label>
+          <input
+            id="faculty"
+            type="text"
             name="faculty"
             value={formData.faculty}
             onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary" 
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
           />
         </div>
 
+        {/* ★ ฟิลด์ส่วนตัวของคุณ — เปลี่ยนเป็นของตัวเองได้ */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">ขนาดเสื้อ (ฟิลด์พิเศษ)</label>
-          <select 
+          <label htmlFor="shirtSize" className="block text-sm font-medium text-gray-700 mb-1">
+            ขนาดเสื้อ
+          </label>
+          <select
+            id="shirtSize"
             name="shirtSize"
             value={formData.shirtSize}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-rsu-primary focus:border-rsu-primary"
           >
-            <option value="S">S (รอบอก 36")</option>
-            <option value="M">M (รอบอก 38")</option>
-            <option value="L">L (รอบอก 40")</option>
-            <option value="XL">XL (รอบอก 42")</option>
-            <option value="XXL">XXL (รอบอก 44")</option>
+            {SHIRT_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
           </select>
         </div>
 
-        <div className="pt-4">
-          <button 
-            type="submit" 
+        {/* PDPA — ต้องไม่ติ๊กไว้ล่วงหน้า */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+          <p className="mb-3">
+            ข้อมูลที่กรอก (ชื่อ อีเมล เบอร์โทร คณะ) จะถูกใช้เพื่อจัดกิจกรรมนี้เท่านั้น
+            เก็บไว้ไม่เกิน 1 ปีหลังจบกิจกรรม เข้าถึงได้เฉพาะผู้จัดงาน
+            และคุณขอแก้ไขหรือลบข้อมูลได้ตลอดเวลาโดยติดต่อผู้จัดงาน
+          </p>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              ข้าพเจ้ายินยอมให้เก็บและใช้ข้อมูลส่วนบุคคลตามวัตถุประสงค์ข้างต้น{" "}
+              <span className="text-red-500">*</span>
+            </span>
+          </label>
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="submit"
             disabled={status === "loading"}
             className="w-full bg-rsu-primary text-white font-bold py-3 px-4 rounded-lg hover:bg-rsu-secondary transition-colors disabled:bg-gray-400"
           >
@@ -225,7 +228,7 @@ function RegisterForm() {
 export default function RegisterPage() {
   return (
     <div className="container mx-auto p-8 max-w-2xl">
-      <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+      <Suspense fallback={<div className="text-center p-8">กำลังโหลด...</div>}>
         <RegisterForm />
       </Suspense>
     </div>

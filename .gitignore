@@ -30,8 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — ห้าม commit ค่าจริง
 .env*
+# ...ยกเว้นไฟล์ตัวอย่างที่ไม่มีค่าจริงอยู่ข้างใน
+!.env.example
 
 # vercel
 .vercel

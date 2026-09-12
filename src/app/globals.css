@@ -8,13 +8,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-rsu-primary: #EF3C63;
-  --color-rsu-secondary: #5CB5F6;
-  --color-rsu-background: #F5F5F5;
-  --color-rsu-text: #29322A;
+
+  /* ★ ธีมส่วนตัว — เปลี่ยนสีหลักของคุณที่บรรทัดเดียวนี้
+     ห้าม hardcode เลข hex ในไฟล์ component */
+  --color-rsu-primary: #ef3c63;
+  --color-rsu-secondary: #5cb5f6;
+  --color-rsu-background: #f5f5f5;
+  --color-rsu-text: #29322a;
+
+  /* ฟอนต์ไทย (โหลดด้วย <link> ใน layout.tsx — ถ้าโหลดไม่ได้จะตกไปใช้ตัวถัดไป) */
+  --font-sans: "Noto Sans Thai", "Sarabun", ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
 }
